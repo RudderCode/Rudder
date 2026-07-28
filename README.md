@@ -36,7 +36,7 @@ you already use.
 
 ### Requirements
 
-- Node.js 23.6 or newer
+- Node.js 24 or newer
 - npm and Git on `PATH`
 - A current Claude Code or Codex installation with plugin support
 
