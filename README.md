@@ -5,7 +5,7 @@
 # Rudder 🫧
 
 <div align="center">
-  <p><strong>Turn coding-session intent into verified unit tests.</strong></p>
+  <p><strong>Measure your own contribution to AI generated code.</strong></p>
   <p>
     <a href="https://github.com/RudderCode/Rudder/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/RudderCode/Rudder?logo=github"></a>
     <a href="https://www.npmjs.com/package/@ruddercode/rudder-plugin"><img alt="npm downloads" src="https://img.shields.io/npm/dm/%40ruddercode%2Frudder-plugin?logo=npm"></a>
@@ -15,16 +15,21 @@
   </p>
 </div>
 
-Rudder is a local plugin for Claude Code and Codex that generates tests from
-two things your coding agent already has: the changes on your branch and the
-intent expressed in your coding session.
+Rudder is a local plugin for Claude Code and Codex that generates tests directly
+from your prompts. Rudder forces your agent to write tests solely from your
+session history, turning test coverage into a proxy for how much of your generated
+code resulted from your own decision making.
 
-A diff shows what changed.
-Your prompts explain why it changed and which edge cases and outcomes matter.
-Rudder combines both sources in a fresh-slate test workflow. 
+Why use it: Coding agents are now generating mass amounts of code, but with very
+little oversight into whether that code actually reflects the intent of the author.
+Rudder solves this by using the age-old method of checking if code does what its 
+supposed to do--unit testing.
 
-Rudder uses the repository's own test and coverage tools, and test generation 
-stays with the coding agent and model you already use.
+How it works: Rudder uses hooks in your coding agent to record the repository and branch
+that your prompts are written in relation to. When invoked at the end of a session, Rudder
+instructs your agent to rewrite unit tests with the requirement that each test is justified
+explicitly by the recorded prompts. Rudder uses the repository's own test and coverage tools,
+and test generation stays with the coding agent and model you already use.
 
 ## Quick start
 
@@ -81,47 +86,7 @@ Rudder inspects the branch and session before proposing a test reset.
 Review the exact paths if tests have already changed.
 Approve the backup and reset only when those paths are correct.
 
-## How it works
-
-```mermaid
-flowchart LR
-    A[Branch changes] --> C[Rudder]
-    B[Locally captured session intent] --> C
-    C --> D[Confirm and back up test changes]
-    D --> E[Current agent generates focused tests]
-    E --> F[Repository tests and coverage]
-    F -->|Missing intent or coverage| G[Focused question]
-    G --> E
-    F -->|Target reached| H[Verified test suite]
-```
-
-When you run Rudder, it:
-
-1. Resolves the target branch and merge base.
-2. Reads the prompts associated with the current repository and branch.
-3. Directs your current coding agent to generate focused unit tests based
-   on the intent inferred from your prompts.
-4. Runs the narrowest relevant tests, followed by the applicable test and
-   coverage commands.
-5. Asks concrete questions to fill in the gaps between your intent and the
-   generated code.
-
-Rudder never uses `git reset --hard` or a broad `git clean`.
-It does not clear your tests without explicit confirmation, and it always
-backs up a copy of your original unit tests before clearing them.
-
-## What counts as intent
-
-Rudder requires your prompts or answers to express each test expectation.
-Existing test changes are not automatically accepted as product intent.
-
-Rudder should infer answers from the code, tests, repository, or conversation.
-When a real ambiguity remains, it asks for a concrete test decision.
-For example:
-
-> On timeout, should `loadProfile` return cached data or surface the error?
-
-Your answer becomes part of the current session and informs the next test pass.
+## Features
 
 ## Local data and privacy
 
@@ -148,17 +113,6 @@ You can also ask the installed skill to:
 Disabling capture does not delete existing records.
 See the [privacy notice](./docs/privacy.md) for the complete data-handling description.
 
-## Design principles
-
-| Principle | What it means |
-| --- | --- |
-| Intent-driven | Prompts and answers define expected behavior; the diff defines what needs tests. |
-| Bring your own agent | Your current coding agent performs the reasoning and generation with its existing model access. |
-| Repository-native | Rudder discovers and runs the project's own test framework, commands, and coverage tooling. |
-| Fresh but recoverable | Approved test changes are backed up before Rudder starts from a clean test slate. |
-| Production-safe | The workflow is limited to tests and does not change production code, coverage configuration, or repository thresholds. |
-| Local context | Captured prompt records stay in a user-scoped SQLite database on your machine. |
-
 ## Development
 
 Clone the repository, install dependencies, and run the validation suite:
@@ -182,6 +136,8 @@ claude --plugin-dir .
 
 See the [installation guide](./docs/install.md) for local Codex setup and the
 published-package workflow.
+
+## Contributing
 
 ## Documentation
 
