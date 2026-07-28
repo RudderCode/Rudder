@@ -5,7 +5,7 @@
 # Rudder 🫧
 
 <div align="center">
-  <p><strong>Measure your own contribution to AI generated code.</strong></p>
+  <p><strong>Measure your own input on AI generated code.</strong></p>
   <p>
     <a href="https://github.com/RudderCode/Rudder/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/RudderCode/Rudder?logo=github"></a>
     <a href="https://www.npmjs.com/package/@ruddercode/rudder-plugin"><img alt="npm downloads" src="https://img.shields.io/npm/dm/%40ruddercode%2Frudder-plugin?logo=npm"></a>
@@ -20,12 +20,12 @@ from your prompts. Rudder forces your agent to write tests solely from your
 session history, turning test coverage into a proxy for how much of your generated
 code resulted from your own decision making.
 
-Why use it: Coding agents are now generating mass amounts of code, but with very
+<strong>Why use it:</strong> Coding agents are now generating mass amounts of code, but with very
 little oversight into whether that code actually reflects the intent of the author.
 Rudder solves this by using the age-old method of checking if code does what its 
 supposed to do--unit testing.
 
-How it works: Rudder uses hooks in your coding agent to record the repository and branch
+<strong>How it works:</strong> Rudder uses hooks in your coding agent to record the repository and branch
 that your prompts are written in relation to. When invoked at the end of a session, Rudder
 instructs your agent to rewrite unit tests with the requirement that each test is justified
 explicitly by the recorded prompts. Rudder uses the repository's own test and coverage tools,
