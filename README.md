@@ -21,15 +21,16 @@ session history, turning test coverage into a proxy for how much of your generat
 code resulted from your own decision making.
 
 <strong>Why use it:</strong> Coding agents are now generating mass amounts of code, but with very
-little oversight into whether that code actually reflects the intent of the author.
+little oversight into whether that code actually reflects the intent of the developer.
 Rudder solves this by using the age-old method of checking if code does what its 
 supposed to do--unit testing.
 
-<strong>How it works:</strong> Rudder uses hooks in your coding agent to record the repository and branch
-that your prompts are written in relation to. When invoked at the end of a session, Rudder
-instructs your agent to rewrite unit tests with the requirement that each test is justified
-explicitly by the recorded prompts. Rudder uses the repository's own test and coverage tools,
-and test generation stays with the coding agent and model you already use.
+<strong>How it works:</strong> Rudder installs hooks in your coding agents to record the repository and
+branch that your agents are working in. When invoked at the end of a session, Rudder
+instructs your agent to rewrite unit tests with the requirement that each test is tied
+directly to a prompt recorded for your working branch. Rudder uses the repository's 
+own test and coverage tools, and test generation stays with the coding agent and model
+you already use.
 
 ## Quick start
 
