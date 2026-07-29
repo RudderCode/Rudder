@@ -145,5 +145,5 @@ jobs:
         run: |
           gh release create "${{ steps.check.outputs.tag }}" \
             --verify-tag \
-            --title "Rudder plugin ${{ steps.check.outputs.version }}" \
+            --title "Rudder v${{ steps.check.outputs.version }}" \
             --generate-notes
