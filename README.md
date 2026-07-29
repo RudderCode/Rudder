@@ -88,6 +88,14 @@ Review the exact paths if tests have already changed.
 Approve the backup and reset only when those paths are correct.
 
 ## Features
+- <strong>Bring your own agent (BYOA):</strong> Rudder is a plugin for your
+existing coding agent, and runs directly in your agent's coding session.
+- <strong>Multi-agent support:</strong> Install hooks into each of your coding
+agents to aggregate sessions across multiple providers.
+- <strong>Local storage:</strong> Your prompt data used by Rudder is stored in
+a local SQLite DB and never leaves your device.
+- <strong>Easy setup:</strong> Plugin installation is the only requirement to
+get started using Rudder.
 
 ## Local data and privacy
 
