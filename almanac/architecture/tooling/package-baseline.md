@@ -24,7 +24,7 @@ Rudder's package baseline is the repo's build and distribution frame for the plu
 
 ## Package Contract
 
-`package.json` is the public package contract. It names the package, version `0.1.3`, Apache-2.0 license, GitHub repository metadata, supported Node engine, package scripts, and package file allowlist [@package-json]. The manifest intentionally carries plugin artifacts rather than a `main`, `types`, or package-root `exports` entry; plugin hosts load the installed hook through `hooks/hooks.json`, and tests enforce that the manifest does not define runtime dependencies or npm workspaces [@package-json] [@plugin-tests].
+`package.json` is the public package contract. It names the package, carries the current release version, declares the Apache-2.0 license and GitHub repository metadata, sets the supported Node engine, and defines package scripts plus the package file allowlist [@package-json]. The manifest intentionally carries plugin artifacts rather than a `main`, `types`, or package-root `exports` entry; plugin hosts load the installed hook through `hooks/hooks.json`, and tests enforce that the manifest does not define runtime dependencies or npm workspaces [@package-json] [@plugin-tests].
 
 The package file allowlist keeps distribution narrow but plugin-complete. `.claude-plugin`, `.codex-plugin`, `assets`, `docs`, `hooks`, `skills`, `dist`, and `LICENSE` ship with the package [@package-json]. Build output and transient development files are excluded from the working tree by `.gitignore`, which ignores `node_modules/`, `dist/`, TypeScript build info, logs, `.env` files except `.env.example`, coverage, and common editor files [@gitignore].
 

@@ -1,12 +1,16 @@
 ---
 title: "CodeAlmanac Maintenance"
-summary: "This reference records Rudder's local CodeAlmanac maintenance mode: scheduled sync and garden are enabled, auto-commit is allowed for wiki source changes, and package update automation remains disabled."
+summary: "This reference records how to verify Rudder's local CodeAlmanac maintenance state, with dated snapshots for scheduled automation and the wiki-source commit boundary."
 topics: [reference, wiki, automation]
 sources:
   - id: automation-session
     type: conversation
     path: /Users/vivek/.codex/sessions/2026/07/22/rollout-2026-07-22T11-37-04-019f8a79-2786-7200-bc5f-4d94980ab0fc.jsonl
     title: "CodeAlmanac automation setup transcript"
+  - id: live-garden-snapshot
+    type: conversation
+    path: /Users/vivek/.codex/sessions/2026/07/29/rollout-2026-07-29T17-12-22-019fafb8-a3c6-7f11-9b38-0b5430c6ce08.jsonl
+    title: "CodeAlmanac Garden live-state transcript"
   - id: ingest-manual
     type: manual
     path: ingest.md
@@ -21,15 +25,19 @@ sources:
     title: "Sources manual"
 ---
 
-CodeAlmanac maintenance for Rudder is configured as a local scheduled workflow, not a per-PR documentation requirement. As of July 22, 2026, transcript sync and garden automation are enabled, package update automation is disabled, telemetry is disabled, and `auto_commit` is enabled so CodeAlmanac may commit its own wiki-source changes [@automation-session]. Because this is user-scoped runtime configuration, verify the live state with `codealmanac config list` and `codealmanac automation status` before depending on it [@automation-session]. For broader repository routing, use [Getting Started](../../getting-started).
+CodeAlmanac maintenance for Rudder is user-scoped local automation, not a per-PR documentation requirement. Treat this page as a verification reference: run `codealmanac config list` and `codealmanac automation status` in the repository before depending on telemetry, scheduled jobs, or `auto_commit`, because those settings live outside the committed wiki source [@automation-session] [@live-garden-snapshot]. For broader repository routing, use [Getting Started](../../getting-started).
 
-## Scheduled Jobs
+## Verify Live State
 
-Transcript sync is enabled with `automation.sync.every` set to `5h`. The setup run installed and loaded `/Users/vivek/Library/LaunchAgents/com.codealmanac.sync.plist`, and its first reported run succeeded [@automation-session].
+Start with `codealmanac config list`. Check `telemetry.enabled`, `auto_commit`, `automation.sync.enabled`, `automation.garden.enabled`, `automation.update.enabled`, and the matching `*.every` intervals before describing local maintenance state as current [@live-garden-snapshot].
 
-Garden is enabled with `automation.garden.every` set to `24h`. The setup run installed and loaded `/Users/vivek/Library/LaunchAgents/com.codealmanac.garden.plist`, and its first reported run succeeded [@automation-session].
+Then run `codealmanac automation status`. Check whether the sync, garden, and update LaunchAgents are installed, loaded, idle or running, and whether their last result succeeded [@live-garden-snapshot]. The current LaunchAgent paths use `/Users/vivek/Library/LaunchAgents/com.codealmanac.sync.plist`, `com.codealmanac.garden.plist`, and `com.codealmanac.update.plist` when installed [@live-garden-snapshot].
 
-Update automation remains disabled even though the update interval setting exists at `24h`. The setup run reported `update automation: not installed`, so scheduled CLI package updates are outside the current maintenance mode [@automation-session].
+## Dated Snapshots
+
+On July 22, 2026, the setup transcript recorded transcript sync and garden automation as enabled, update automation as not installed, telemetry as disabled, and `auto_commit` as enabled [@automation-session]. That snapshot is historical evidence, not a standing claim about the user's current machine state.
+
+On July 29, 2026, a Garden run observed `telemetry.enabled true`, `automation.sync.enabled true`, `automation.garden.enabled true`, `automation.update.enabled true`, and `auto_commit true`; `codealmanac automation status` also reported sync, garden, and update automation installed, loaded, idle, and last succeeded [@live-garden-snapshot].
 
 ## Commit Boundary
 

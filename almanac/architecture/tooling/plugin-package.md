@@ -43,7 +43,7 @@ The repository root is the publishable Rudder plugin package. `package.json` nam
 
 The Claude manifest and Codex manifest share the public plugin name `rudder`, version, description, license, repository, keywords, and `./skills/` path [@claude-manifest] [@codex-manifest]. The Claude manifest also points at `./hooks/hooks.json`, while the Codex manifest carries interface metadata such as display name, short description, category, default prompt, icon, logo, privacy URL, and terms URL [@claude-manifest] [@codex-manifest].
 
-The marketplace catalog under `.claude-plugin/marketplace.json` lists one plugin named `rudder` and resolves it from npm package `@ruddercode/rudder-plugin` version `0.1.3` on the public npm registry [@marketplace]. Tests enforce that the package version is synchronized across `package.json`, `package-lock.json`, both plugin manifests, and both marketplace version fields [@plugin-tests]. The install docs describe Claude Code and Codex marketplace installation separately but state that both use the same npm-backed plugin package [@install-doc].
+The marketplace catalog under `.claude-plugin/marketplace.json` lists one plugin named `rudder` and resolves it from npm package `@ruddercode/rudder-plugin` on the public npm registry [@marketplace]. Tests enforce that the package version is synchronized across `package.json`, `package-lock.json`, both plugin manifests, and both marketplace version fields [@plugin-tests]. The install docs describe Claude Code and Codex marketplace installation separately but state that both use the same npm-backed plugin package [@install-doc].
 
 ## Bundled Hook
 

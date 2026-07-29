@@ -33,6 +33,9 @@ sources:
   - id: hook-tests
     type: file
     path: test/prompt-hook.test.ts
+  - id: data-script
+    type: file
+    path: skills/rudder/scripts/manage-data.mjs
   - id: skill-tests
     type: file
     path: test/skill-runtime.test.ts
@@ -58,7 +61,7 @@ On submit, `recordPromptBranch()` resolves the current repository and branch, va
 
 The read paths are `promptsForSession(source, sessionId)` and `promptsForBranch(repository, branch)` [@prompt-tagger]. Session lookup orders prompts by submission time and prompt ID, while branch lookup normalizes repository and branch input before ordering by submission time, source, session ID, and prompt ID [@prompt-tagger].
 
-Prompt capture is optional metadata, but the current write path has no prompt-capture disable check. The skill-runtime tests leave a legacy `prompt-capture-disabled` marker in the Rudder home directory and set `RUDDER_DISABLE_PROMPT_CAPTURE=1`, then verify that `recordPromptHookEvent()` still stores the prompt [@skill-tests].
+Prompt capture is best-effort hook metadata, not a mode that data controls can disable. The current write path has no prompt-capture disable check: skill-runtime tests leave a legacy `prompt-capture-disabled` marker in the Rudder home directory and set `RUDDER_DISABLE_PROMPT_CAPTURE=1`, then verify that `recordPromptHookEvent()` still stores the prompt [@skill-tests]. Current data controls are status lookup and confirmed prompt-row deletion through `manage-data.mjs`; they do not include enable or disable commands [@data-script] [@skill-tests].
 
 ## Failure Boundary
 

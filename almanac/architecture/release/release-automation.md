@@ -18,7 +18,7 @@ Rudder's release automation is split between a publishing workflow on `main` and
 
 ## Version As Release Input
 
-`package.json` is the only version input for the workflows. The package is currently `@ruddercode/rudder-plugin` at version `0.1.3`, and both workflows turn that version into tag `rudder-plugin-v0.1.3` at runtime [@package-json] [@publish-workflow] [@release-alert]. The release-alert workflow performs the same package-name, version, tag, npm, and GitHub Release checks on pull requests to `main` [@release-alert].
+`package.json` is the only version input for the workflows. Both workflows read the manifest version at runtime and turn it into tag `rudder-plugin-v<version>` [@package-json] [@publish-workflow] [@release-alert]. The release-alert workflow performs the same package-name, version, tag, npm, and GitHub Release checks on pull requests to `main` [@release-alert].
 
 Both workflows reject any package name other than `@ruddercode/rudder-plugin` before attempting release work [@publish-workflow] [@release-alert]. This is a release invariant: changing the package name affects plugin marketplace metadata, npm publication, and tag naming, so evaluate it through [Prepare Package Release](../../guides/release/prepare-package-release) and [Rudder Plugin Package](../tooling/plugin-package).
 
