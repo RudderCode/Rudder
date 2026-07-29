@@ -145,6 +145,8 @@ published-package workflow.
 
 ## Contributing
 
+We welcome contributions! Please read our [Contributing Guide](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md) before getting started.
+
 ## Documentation
 
 - [Installation](./docs/install.md)
