@@ -1,6 +1,7 @@
 # Contributing to Rudder
 
 Thanks for helping improve Rudder! We really appreciate your support :)
+
 Here's some general guidelines to help you get started:
 - [Issues](#issues)
 - [Pull Requests](#pull-requests)
