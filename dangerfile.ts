@@ -4,8 +4,11 @@ import { danger, fail, schedule, warn } from 'danger';
 
 const PROTECTED_PATHS = [
   'README.md',
+  'CONTRIBUTING.md',
+  'CODE_OF_CONDUCT.md',
   'LICENSE',
   'CLAUDE.md',
+  'docs/**',
   'assets/**',
   '.claude/**',
   '.codex/**',
