@@ -117,6 +117,11 @@ test('ships a public marketplace catalog and its package resources', () => {
       'utf8'
     )
   );
+  const skill = readFileSync(
+    join(pluginRoot, 'skills', 'rudder', 'SKILL.md'),
+    'utf8'
+  );
+
   assert.equal(marketplace.name, 'rudder');
   assert.equal(marketplace.plugins.length, 1);
   assert.equal(marketplace.plugins[0].name, 'rudder');
@@ -125,6 +130,8 @@ test('ships a public marketplace catalog and its package resources', () => {
     marketplace.plugins[0].source.package,
     '@ruddercode/rudder-plugin'
   );
+  assert.match(skill, /^---\nname: rudder\n/);
+
   for (const path of [
     ['skills', 'rudder', 'scripts', 'backup-tests.mjs'],
     ['skills', 'rudder', 'scripts', 'context.mjs'],
