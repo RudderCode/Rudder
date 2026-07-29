@@ -11,15 +11,18 @@ sources:
     path: .github/workflows/danger.yml
 ---
 
-Agent-protected paths are repository paths matched by `PROTECTED_PATHS` in `dangerfile.ts` and evaluated by Danger when a pull request has detected agent authorship. The current protected patterns are `README.md`, `LICENSE`, `CLAUDE.md`, `assets/**`, `.claude/**`, `.codex/**`, and `.cursor/**` [@dangerfile]. CI detects agent authorship from the PR author, commit author names and emails, and `Co-authored-by` trailers; when no agent identity is detected, the scheduled Danger check returns before enforcing path or inline guards [@dangerfile].
+Agent-protected paths are repository paths matched by `PROTECTED_PATHS` in `dangerfile.ts` and evaluated by Danger when a pull request has detected agent authorship. The current protected patterns are `README.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `LICENSE`, `CLAUDE.md`, `docs/**`, `assets/**`, `.claude/**`, `.codex/**`, and `.cursor/**` [@dangerfile]. CI detects agent authorship from the PR author, commit author names and emails, and `Co-authored-by` trailers; when no agent identity is detected, the scheduled Danger check returns before enforcing path or inline guards [@dangerfile].
 
 ## Current Rules
 
 | Pattern | Scope |
 | --- | --- |
 | `README.md` | Protects the root README file [@dangerfile]. |
+| `CONTRIBUTING.md` | Protects the contributor guide [@dangerfile]. |
+| `CODE_OF_CONDUCT.md` | Protects the code of conduct [@dangerfile]. |
 | `LICENSE` | Protects the root license file [@dangerfile]. |
 | `CLAUDE.md` | Protects the root Claude instruction handoff file [@dangerfile]. |
+| `docs/**` | Protects public documentation under `docs/` [@dangerfile]. |
 | `assets/**` | Protects root assets and paths beneath them [@dangerfile]. |
 | `.claude/**` | Protects Claude compatibility files and symlinks [@dangerfile]. |
 | `.codex/**` | Protects Codex compatibility files and symlinks [@dangerfile]. |

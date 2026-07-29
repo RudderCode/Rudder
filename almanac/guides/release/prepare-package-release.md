@@ -32,7 +32,7 @@ Also confirm that the package name remains exactly `@ruddercode/rudder-plugin`. 
 
 ## Read The Release Alert
 
-On PRs targeting `main`, the release-alert workflow checks whether npmjs.org already has the package version, whether the first publication would require the `NPM_TOKEN` bootstrap secret, whether the version's plugin tag exists, and whether a GitHub Release exists for the tag [@release-alert]. It posts or updates a sticky PR comment marked by `<!-- release-alert -->`, so repeated pushes update one comment instead of creating new release notices [@release-alert].
+On PRs targeting `main`, the release-alert workflow checks whether npmjs.org already has the package version, whether the version's plugin tag exists, and whether a GitHub Release exists for the tag [@release-alert]. It posts or updates a sticky PR comment marked by `<!-- release-alert -->`, so repeated pushes update one comment instead of creating new release notices [@release-alert].
 
 If the alert says merge will release the plugin, verify that the named version and artifact targets are intentional. If it says no plugin release on merge, the current version already has the npm package, plugin tag, and GitHub Release; bump the version before merging if a new release is required [@release-alert].
 
@@ -40,7 +40,7 @@ If the alert says merge will release the plugin, verify that the named version a
 
 The publish workflow runs on pushes to `main` and on manual dispatch with concurrency group `publish-rudder-plugin` [@publish]. It reads the manifest version and package name, checks npmjs.org for that package version, checks whether the plugin tag exists, and checks whether the GitHub Release for the tag exists [@publish].
 
-If npmjs.org returns a missing-version response, npm publishing is enabled; if the package itself is also missing, bootstrap publishing requires `NPM_TOKEN`; if the tag or GitHub Release is missing, those artifacts are created [@publish]. When any release artifact is needed, the workflow installs Node 24, upgrades npm for Trusted Publishers support, runs `npm ci`, validates the package, publishes to npmjs.org when needed, pushes the tag when needed, and creates the GitHub Release with generated notes when needed [@publish].
+If npmjs.org returns a missing-version response, npm publishing is enabled; if the tag or GitHub Release is missing, those artifacts are created [@publish]. When any release artifact is needed, the workflow installs Node 24, upgrades npm for Trusted Publishers support, runs `npm ci`, writes release telemetry defaults into `src/telemetry-build-config.ts`, validates the package with telemetry disabled, publishes to npmjs.org when needed, pushes the tag when needed, and creates the GitHub Release with generated notes and title `Rudder v<version>` when needed [@publish].
 
 ## Recover From A Bad Alert
 

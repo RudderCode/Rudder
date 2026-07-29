@@ -48,6 +48,6 @@ That remediation flow has its own validation boundary. If it applies any fixes, 
 
 ## Agent Guards
 
-`dangerfile.ts` protects `README.md`, `LICENSE`, `CLAUDE.md`, `assets/**`, `.claude/**`, `.codex/**`, and `.cursor/**` from agent-authored pull request changes [@dangerfile]. It detects agent authorship from the PR author, commit author names and emails, and `Co-authored-by` trailers [@dangerfile]. The Danger workflow runs `npm run danger:ci` on pull requests to `main` after installing dependencies on Node 24 [@danger-workflow] [@package].
+`dangerfile.ts` protects `README.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `LICENSE`, `CLAUDE.md`, `docs/**`, `assets/**`, `.claude/**`, `.codex/**`, and `.cursor/**` from agent-authored pull request changes [@dangerfile]. It detects agent authorship from the PR author, commit author names and emails, and `Co-authored-by` trailers [@dangerfile]. The Danger workflow runs `npm run danger:ci` on pull requests to `main` after installing dependencies on Node 24 [@danger-workflow] [@package].
 
 For detected-agent pull requests, Danger fails any changed path matching `PROTECTED_PATHS` and warns when the policy files `dangerfile.ts` or `.github/workflows/danger.yml` change [@dangerfile]. It also enforces inline `agent-guard:off` and `agent-guard:on` regions: invalid marker nesting fails, agent-authored changes inside protected regions fail, and marker changes warn for explicit review [@dangerfile]. The lookup version of this contract belongs in [Protected Paths](../../reference/contributor/protected-paths).

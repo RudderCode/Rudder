@@ -21,9 +21,6 @@ sources:
   - id: prompt-tagger
     type: file
     path: src/prompt-tagger.ts
-  - id: prompt-control
-    type: file
-    path: src/prompt-control.ts
   - id: telemetry
     type: file
     path: src/telemetry.ts
@@ -34,25 +31,25 @@ sources:
 
 # Change Shared Infrastructure
 
-Use this guide when a task changes shared foundations rather than one isolated feature: package metadata or scripts, TypeScript compiler settings, GitHub automation, centralized agent workflows, generated database migrations, prompt capture, local state, plugin packaging, or telemetry lifecycle behavior [@package] [@tsconfig] [@db-client] [@prompt-tagger] [@prompt-control] [@telemetry]. The goal is to keep the change tied to the affected foundation, avoid [Protected Paths](../../reference/contributor/protected-paths), and finish with the repo's [Run Checks](run-checks) gate.
+Use this guide when a task changes shared foundations rather than one isolated feature: package metadata or scripts, TypeScript compiler settings, GitHub automation, centralized agent workflows, generated database migrations, prompt capture, local state, plugin packaging, or telemetry lifecycle behavior [@package] [@tsconfig] [@db-client] [@prompt-tagger] [@telemetry]. The goal is to keep the change tied to the affected foundation, avoid [Protected Paths](../../reference/contributor/protected-paths), and finish with the repo's [Run Checks](run-checks) gate.
 
 ## Confirm The Surface
 
-Start by naming the shared surface the task changes. Package work changes the manifest contract, dependency set, published file allowlist, bundled hook output, or npm script behavior [@package]. TypeScript work changes the shared NodeNext no-emit compiler model [@tsconfig]. Runtime-foundation work changes local database migration application, Rudder home resolution, dashboard port parsing, prompt capture, prompt data controls, or telemetry identity and PostHog client behavior [@db-client] [@prompt-tagger] [@prompt-control] [@telemetry].
+Start by naming the shared surface the task changes. Package work changes the manifest contract, dependency set, published file allowlist, bundled hook output, or npm script behavior [@package]. TypeScript work changes the shared NodeNext no-emit compiler model [@tsconfig]. Runtime-foundation work changes local database migration application, Rudder home resolution, dashboard port parsing, prompt capture, prompt data deletion, update-state caching, or telemetry identity and PostHog client behavior [@db-client] [@prompt-tagger] [@telemetry].
 
 If the task is product behavior rather than shared infrastructure, use the product-intent, plugin, and runtime pages that describe that area instead of treating this guide as an approval gate. If the task does change a shared surface, continue with the protected-path check before editing.
 
 ## Check Protected Paths
 
-Read `dangerfile.ts` before editing. The current protected path patterns are `README.md`, `LICENSE`, `CLAUDE.md`, `assets/**`, `.claude/**`, `.codex/**`, and `.cursor/**` [@dangerfile].
+Read `dangerfile.ts` before editing. The current protected path patterns are `README.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `LICENSE`, `CLAUDE.md`, `docs/**`, `assets/**`, `.claude/**`, `.codex/**`, and `.cursor/**` [@dangerfile].
 
 Pull requests to `main` run the Danger workflow, which executes `npm run danger:ci` [@danger-workflow] [@package]. For agent-authored PRs, Danger fails changes to protected paths and changes inside inline `agent-guard:off` and `agent-guard:on` regions, while warning when policy files or guard markers change [@dangerfile]. Treat a protection relaxation as an intentional policy change, not a routine workaround; otherwise move the change to an unprotected path or ask the user for a different route.
 
 ## Make The Infrastructure Edit
 
-Keep the edit inside the system area the task actually touches. For package or TypeScript changes, remember that the package manifest defines the validation commands, bundled hook output, and published file list, while `tsconfig.json` defines the no-emit source-checking globs [@package] [@tsconfig]. For runtime-foundation changes, keep persistent paths derived from `rudderHome()`, keep prompt capture aligned with the local data controls, and keep telemetry's opt-in client lifecycle aligned with the environment-variable contract [@db-client] [@prompt-control] [@telemetry].
+Keep the edit inside the system area the task actually touches. For package or TypeScript changes, remember that the package manifest defines the validation commands, bundled hook output, and published file list, while `tsconfig.json` defines the no-emit source-checking globs [@package] [@tsconfig]. For runtime-foundation changes, keep persistent paths derived from `rudderHome()`, keep prompt capture aligned with the local prompt-data deletion contract, and keep telemetry's client lifecycle aligned with the environment-variable contract [@db-client] [@prompt-tagger] [@telemetry].
 
-When an infrastructure change affects agent workflow behavior, consult [Run Checks](run-checks) for the centralized `.agents/skills` layout gate. Do not modify `CLAUDE.md`, `.claude/**`, `.codex/**`, or `.cursor/**` from an agent-authored PR because those paths are protected by Danger [@dangerfile].
+When an infrastructure change affects agent workflow behavior, consult [Run Checks](run-checks) for the centralized `.agents/skills` layout gate. Do not modify public docs, `CLAUDE.md`, `.claude/**`, `.codex/**`, or `.cursor/**` from an agent-authored PR because those paths are protected by Danger [@dangerfile].
 
 ## Verify And Recover
 

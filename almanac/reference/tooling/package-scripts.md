@@ -29,7 +29,7 @@ This reference lists the npm scripts defined by Rudder's package and the local o
 | `danger:ci` | `danger ci --failOnErrors` | Runs Danger with failing errors for CI agent-guard enforcement [@package-json]. |
 | `check:agent-layout` | `test -L .claude/skills && test -L .codex/skills && test .claude/skills -ef .agents/skills && test .codex/skills -ef .agents/skills && test ! -e .claude/commands && grep -Fxq '@AGENTS.md' CLAUDE.md` | Verifies Claude/Codex skill symlinks, absence of Claude command aliases, and the `CLAUDE.md` handoff [@package-json]. |
 | `typecheck` | `tsc --noEmit` | Runs TypeScript checking without writing build output [@package-json]. |
-| `build` | `rm -rf dist && esbuild bin/rudder-prompt-hook.ts --bundle --platform=node --format=esm --target=node23 --outfile=dist/rudder-prompt-hook.mjs && cp -R drizzle dist/drizzle` | Removes old `dist` output, bundles the prompt hook for Node ESM, then copies generated Drizzle migrations into the package build tree [@package-json]. |
+| `build` | `rm -rf dist && esbuild bin/rudder-prompt-hook.ts --bundle --platform=node --format=esm --target=node24 --outfile=dist/rudder-prompt-hook.mjs && cp -R drizzle dist/drizzle` | Removes old `dist` output, bundles the prompt hook for Node ESM, then copies generated Drizzle migrations into the package build tree [@package-json]. |
 | `pretest` | `npm run build` | Rebuilds the hook bundle before tests [@package-json]. |
 | `test` | `node --test` | Runs Node's built-in test runner [@package-json]. |
 | `prepack` | `npm run build` | Rebuilds package artifacts before `npm pack` [@package-json]. |

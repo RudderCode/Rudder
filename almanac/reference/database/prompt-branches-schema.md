@@ -1,6 +1,6 @@
 ---
 title: "Prompt Branches Schema"
-summary: "The prompt branches schema reference defines Rudder's local prompt table, Drizzle declaration, migration, indexes, hook normalization, and helper contracts."
+summary: "The prompt branches schema reference defines Rudder's local prompt table, Drizzle declaration, migrations, indexes, hook normalization, and helper contracts."
 topics: [reference, database, prompt-capture, prompt-history, runtime, sqlite]
 sources:
   - id: schema
@@ -9,6 +9,9 @@ sources:
   - id: prompt-migration
     type: file
     path: drizzle/20260722200723_prompt-branch-links/migration.sql
+  - id: previous-output-migration
+    type: file
+    path: drizzle/20260723191552_capture-previous-agent-output/migration.sql
   - id: db-client
     type: file
     path: src/db/client.ts
@@ -18,9 +21,6 @@ sources:
   - id: prompt-hook
     type: file
     path: src/prompt-hook.ts
-  - id: prompt-control
-    type: file
-    path: src/prompt-control.ts
   - id: migrations-test
     type: file
     path: test/migrations.test.ts
@@ -31,11 +31,11 @@ sources:
 
 # Prompt Branches Schema
 
-The `prompt_branches` table is Rudder's SQLite storage contract for captured prompt intent. Drizzle declares the table in `src/db/schema.ts`, the generated migration under `drizzle/` creates it at runtime, and `src/prompt-tagger.ts` defines the write, reconciliation, and lookup helper contracts [@schema] [@prompt-migration] [@prompt-tagger]. This reference is the exact lookup companion to [Prompt Branch Store](../../architecture/runtime/prompt-branch-store), [Prompt History](../../concepts/runtime/prompt-history), and the [generated migrations decision](../../decisions/database/generated-drizzle-migrations).
+The `prompt_branches` table is Rudder's SQLite storage contract for captured prompt intent. Drizzle declares the table in `src/db/schema.ts`, generated migrations under `drizzle/` create and extend it at runtime, and `src/prompt-tagger.ts` defines the write, reconciliation, and lookup helper contracts [@schema] [@prompt-migration] [@previous-output-migration] [@prompt-tagger]. This reference is the exact lookup companion to [Prompt Branch Store](../../architecture/runtime/prompt-branch-store), [Prompt History](../../concepts/runtime/prompt-history), and the [generated migrations decision](../../decisions/database/generated-drizzle-migrations).
 
 ## Runtime Creation
 
-`openDb()` enables WAL, sets `PRAGMA busy_timeout = 5000`, enables `PRAGMA secure_delete = ON`, constructs a Drizzle client over the same `DatabaseSync` handle, and runs `migrate(orm, { migrationsFolder })` before caching the handles [@db-client]. The migration test opens a new database and asserts that `prompt_branches` is the live prompt/session table and that Drizzle recorded two applied migrations [@migrations-test].
+`openDb()` enables WAL, sets `PRAGMA busy_timeout = 5000`, enables `PRAGMA secure_delete = ON`, constructs a Drizzle client over the same `DatabaseSync` handle, and runs `migrate(orm, { migrationsFolder })` before caching the handles [@db-client]. The migration test opens a new database, asserts that `prompt_branches` is the live prompt/session table, verifies nullable `previous_agent_output`, and asserts that Drizzle recorded three applied migrations [@migrations-test].
 
 ## Columns
 
@@ -45,6 +45,7 @@ The `prompt_branches` table is Rudder's SQLite storage contract for captured pro
 | `session_id` | `text NOT NULL` [@prompt-migration] | `sessionId: text('session_id').notNull()` [@schema] | Trimmed nonblank agent session ID [@prompt-hook] [@prompt-tagger]. |
 | `prompt_id` | `text NOT NULL` [@prompt-migration] | `promptId: text('prompt_id').notNull()` [@schema] | Provider prompt key or generated UUID when missing [@prompt-hook] [@prompt-tagger]. |
 | `prompt_text` | `text NOT NULL` [@prompt-migration] | `promptText: text('prompt_text').notNull()` [@schema] | Submitted prompt text; blank text is rejected [@prompt-tagger]. |
+| `previous_agent_output` | `text` added by `20260723191552_capture-previous-agent-output` [@previous-output-migration] | `previousAgentOutput: text('previous_agent_output')` [@schema] | Optional latest assistant output read from hook `transcript_path`; blank output is stored as `null` [@prompt-hook] [@prompt-tagger]. |
 | `repository` | `text NOT NULL` [@prompt-migration] | `text('repository').notNull()` [@schema] | Normalized repository key [@prompt-tagger]. |
 | `branch` | `text NOT NULL` [@prompt-migration] | `text('branch').notNull()` [@schema] | Normalized branch name [@prompt-tagger]. |
 | `submitted_at` | `text NOT NULL` [@prompt-migration] | `submittedAt: text('submitted_at').notNull()` [@schema] | ISO submission timestamp [@prompt-tagger]. |
@@ -70,10 +71,8 @@ The hook normalizer also accepts `Stop` as reconciliation, uses `cwd` when prese
 
 ## Helper Contracts
 
-`recordPromptBranch(input)` records a submitted prompt and returns the stored row. Replaying the same source/session/prompt ID updates prompt text and keeps the earliest submission time [@prompt-tagger] [@prompt-tests].
+`recordPromptBranch(input)` records a submitted prompt and returns the stored row. Replaying the same source/session/prompt ID updates prompt text, keeps the earliest submission time, and preserves the first non-null previous agent output [@prompt-tagger] [@prompt-tests].
 
 `reconcilePromptBranch(input)` updates a submitted prompt to the branch active after the agent turn. If the input omits a prompt ID, it reconciles the latest unreconciled prompt for the same source/session pair [@prompt-tagger] [@prompt-tests].
 
 `promptsForSession(source, sessionId)` returns prompts ordered by `submittedAt` and `promptId` [@prompt-tagger]. `promptsForBranch(repository, branch)` normalizes repository and branch input, then returns branch prompts ordered by submission time, source, session ID, and prompt ID [@prompt-tagger].
-
-`promptCaptureDisabled()` disables writes when `RUDDER_DISABLE_PROMPT_CAPTURE` is `1` or when the preference marker exists under the Rudder home directory [@prompt-control].
