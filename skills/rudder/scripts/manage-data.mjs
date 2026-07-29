@@ -1,18 +1,12 @@
 #!/usr/bin/env node
 
-import {
-  existsSync,
-  mkdirSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
 const stateRoot = process.env.RUDDER_HOME || join(homedir(), '.rudder');
 const databasePath = join(stateRoot, 'rudder.db');
-const disabledPath = join(stateRoot, 'prompt-capture-disabled');
 
 function databasePromptCount(database) {
   const table = database
@@ -38,29 +32,10 @@ function promptCount() {
 
 function status() {
   return {
-    captureEnabled:
-      process.env.RUDDER_DISABLE_PROMPT_CAPTURE !== '1' &&
-      !existsSync(disabledPath),
-    disabledByEnvironment:
-      process.env.RUDDER_DISABLE_PROMPT_CAPTURE === '1',
-    disabledByPreference: existsSync(disabledPath),
     rudderHome: stateRoot,
     databasePath,
     promptCount: promptCount(),
   };
-}
-
-function setCaptureEnabled(enabled) {
-  if (enabled) {
-    rmSync(disabledPath, { force: true });
-  } else {
-    mkdirSync(stateRoot, { recursive: true });
-    writeFileSync(disabledPath, `${new Date().toISOString()}\n`, {
-      encoding: 'utf8',
-      mode: 0o600,
-    });
-  }
-  return status();
 }
 
 function deletePrompts() {
@@ -90,12 +65,6 @@ function main() {
     case 'status':
       result = status();
       break;
-    case 'disable':
-      result = setCaptureEnabled(false);
-      break;
-    case 'enable':
-      result = setCaptureEnabled(true);
-      break;
     case 'delete':
       if (!args.includes('--confirm')) {
         throw new Error(
@@ -106,7 +75,7 @@ function main() {
       break;
     default:
       throw new Error(
-        'usage: manage-data.mjs <status|disable|enable|delete --confirm>'
+        'usage: manage-data.mjs <status|delete --confirm>'
       );
   }
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);

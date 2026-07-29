@@ -3,7 +3,6 @@ import {
   recordPromptBranch,
   type PromptBranchRow,
 } from './prompt-tagger.ts';
-import { promptCaptureDisabled } from './prompt-control.ts';
 import { capture } from './telemetry.ts';
 import { readPreviousAgentOutput } from './transcript.ts';
 
@@ -157,8 +156,6 @@ export function recordPromptHookEvent(
   payload: unknown,
   fallbackCwd?: string
 ): PromptBranchRow | null {
-  if (promptCaptureDisabled()) return null;
-
   const hook = normalizePromptHookPayload(source, payload, fallbackCwd);
   if (hook.event === 'submit') {
     const row = recordPromptBranch({
