@@ -53,10 +53,8 @@ test('ships matching Codex and Claude plugin metadata', () => {
 
   assert.equal(codex.name, 'rudder');
   assert.equal(claude.name, codex.name);
-  assert.equal(claude.version, codex.version);
   assert.equal(codex.description, claude.description);
   assert.equal(packageManifest.name, '@ruddercode/rudder-plugin');
-  assert.equal(packageManifest.version, codex.version);
   assert.equal(packageManifest.engines.node, '>=24.0.0');
   assert.equal(packageManifest.dependencies, undefined);
   assert.equal(packageManifest.workspaces, undefined);
@@ -75,15 +73,56 @@ test('ships matching Codex and Claude plugin metadata', () => {
   assert.ok(packageManifest.files.includes('dist'));
 });
 
-test('ships a public marketplace catalog and complete Rudder skill', () => {
+test('keeps the Rudder package version synchronized across the codebase', () => {
+  const packageManifest = JSON.parse(
+    readFileSync(join(pluginRoot, 'package.json'), 'utf8')
+  );
+  const packageLock = JSON.parse(
+    readFileSync(join(pluginRoot, 'package-lock.json'), 'utf8')
+  );
+  const codex = JSON.parse(
+    readFileSync(join(pluginRoot, '.codex-plugin', 'plugin.json'), 'utf8')
+  );
+  const claude = JSON.parse(
+    readFileSync(join(pluginRoot, '.claude-plugin', 'plugin.json'), 'utf8')
+  );
   const marketplace = JSON.parse(
     readFileSync(
       join(pluginRoot, '.claude-plugin', 'marketplace.json'),
       'utf8'
     )
   );
-  const codex = JSON.parse(
-    readFileSync(join(pluginRoot, '.codex-plugin', 'plugin.json'), 'utf8')
+
+  for (const [source, version] of [
+    ['package-lock.json', packageLock.version],
+    ['package-lock.json root package', packageLock.packages[''].version],
+    ['.codex-plugin/plugin.json', codex.version],
+    ['.claude-plugin/plugin.json', claude.version],
+    ['marketplace plugin metadata', marketplace.plugins[0].version],
+    ['marketplace npm source', marketplace.plugins[0].source.version],
+  ]) {
+    assert.equal(
+      version,
+      packageManifest.version,
+      `${source} must match package.json version ${packageManifest.version}`
+    );
+  }
+
+  assert.ok(
+    readFileSync(
+      join(pluginRoot, 'docs', 'marketplace-submission.md'),
+      'utf8'
+    ).includes(`Rudder ${packageManifest.version}`),
+    `marketplace submission must reference Rudder ${packageManifest.version}`
+  );
+});
+
+test('ships a public marketplace catalog and complete Rudder skill', () => {
+  const marketplace = JSON.parse(
+    readFileSync(
+      join(pluginRoot, '.claude-plugin', 'marketplace.json'),
+      'utf8'
+    )
   );
   const skill = readFileSync(
     join(pluginRoot, 'skills', 'rudder', 'SKILL.md'),
@@ -93,13 +132,11 @@ test('ships a public marketplace catalog and complete Rudder skill', () => {
   assert.equal(marketplace.name, 'rudder');
   assert.equal(marketplace.plugins.length, 1);
   assert.equal(marketplace.plugins[0].name, 'rudder');
-  assert.equal(marketplace.plugins[0].version, codex.version);
   assert.equal(marketplace.plugins[0].source.source, 'npm');
   assert.equal(
     marketplace.plugins[0].source.package,
     '@ruddercode/rudder-plugin'
   );
-  assert.equal(marketplace.plugins[0].source.version, codex.version);
   assert.match(skill, /^---\nname: rudder\n/);
   assert.match(skill, /scripts\/context\.mjs/);
   assert.match(skill, /scripts\/manage-data\.mjs/);
