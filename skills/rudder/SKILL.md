@@ -65,12 +65,39 @@ Coverage is loop control, never a source of test intent.
 - Do not write the next test until the user answers.
   Repository code may help frame the question, but it cannot supply the answer.
 - After each answer, rerun `scripts/context.mjs`, require a captured prompt
-  record for the answer, and add only the expectation that answer authorizes.
-- Complete the red-green cycle before measuring coverage or asking another
-  question.
+  record for the answer, and queue only the expectation that answer authorizes.
+- Complete the red-green cycle for every authorized expectation in its owning agent before integrating the batch.
+  Use the queue answered rewrites guidance to set up owning agents.
+  Do not measure coverage while a rewrite is pending.
 - If the answer is missing, declined, or not captured, stop below the target.
   Report the uncovered behavior.
   Never fill the gap by inference.
+
+## Queue answered rewrites
+
+Only the main agent may ask the user questions.
+The main agent owns intent interpretation, the rewrite queue, integration, and coverage.
+
+- After capturing an answer, prepare one bounded rewrite task with the authorized
+  expectation, exact source-intent tag, allowed test and production paths,
+  relevant repository instructions, and narrow test command.
+- Use at most three rewrite subagents at once and dispatch no more than three tasks between coverage runs.
+  Dispatch each safe task without waiting so the main agent can continue the question flow.
+  If the host cannot launch subagents, execute the same tasks serially.
+- Assign disjoint behavior and file ownership to every subagent.
+  Include the current worktree state in the task and tell the subagent not to undo user or other-agent changes.
+  If ownership cannot be made disjoint, run that rewrite serially in the main agent.
+- Limit each subagent to its assigned rewrite.
+  Require it to write and tag the test, observe red, make the smallest production change, reach narrow green, and report files and commands.
+  Forbid it from asking questions, spawning agents, running coverage, committing, or editing outside its assigned paths.
+- While fewer than three tasks have been dispatched since the last coverage run, continue from that coverage snapshot only when another unassigned, independent uncovered behavior is available and its question does not depend on a pending rewrite.
+  Ask exactly one question at a time.
+- Do not ask another question after dispatching the third task.
+  Also stop dispatching when no safe independent task remains, the user stops, or an answer is missing.
+- Wait for every subagent in the batch to finish before integration.
+  Inspect each result and the combined diff, verify its tag and path ownership, and complete a failed or invalid rewrite serially.
+  Run the related and full suites on the combined worktree.
+  Run coverage only after the joined suite is green.
 
 ## Enforce red-green TDD
 
@@ -86,7 +113,8 @@ For every new or changed expectation:
    Do not change unrelated behavior or weaken the test.
    Do not alter coverage configuration or thresholds.
 4. Rerun the narrow test until it passes.
-   Then run the applicable related and full test commands.
+   For a queued rewrite, return the result to the main agent for batch integration.
+   Otherwise, run the applicable related and full test commands.
 5. Measure coverage only after the suite is green.
 
 ## Run the workflow
@@ -159,11 +187,11 @@ For every new or changed expectation:
 10. When the suite is green, run the applicable coverage command.
     Measure changed production code when the tooling supports it.
     If coverage is below the target, follow the question-driven coverage loop.
-    Ask exactly one question to the user.
-11. After the answer is captured, add only its authorized expectation.
-    Run the red-green cycle, measure coverage, then ask the next question.
+11. Ask exactly one question at a time to the user.
+    After the answer is captured, queue only its authorized expectation using the bounded rewrite workflow.
+    Continue asking independent questions until the batch must join.
+    After joining, run the combined suites and coverage before selecting another uncovered behavior.
     Continue until the target passes or the user tells you to stop the flow.
-    Also stop if the user leaves a question unanswered.
 
 Report the requirements derived from intent and all files changed.
 Report commands run, coverage, unanswered ambiguities, and the backup location.

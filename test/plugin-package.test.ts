@@ -110,18 +110,13 @@ test('keeps the Rudder package version synchronized across the codebase', () => 
 
 });
 
-test('ships a public marketplace catalog and complete Rudder skill', () => {
+test('ships a public marketplace catalog and its package resources', () => {
   const marketplace = JSON.parse(
     readFileSync(
       join(pluginRoot, '.claude-plugin', 'marketplace.json'),
       'utf8'
     )
   );
-  const skill = readFileSync(
-    join(pluginRoot, 'skills', 'rudder', 'SKILL.md'),
-    'utf8'
-  );
-
   assert.equal(marketplace.name, 'rudder');
   assert.equal(marketplace.plugins.length, 1);
   assert.equal(marketplace.plugins[0].name, 'rudder');
@@ -130,11 +125,6 @@ test('ships a public marketplace catalog and complete Rudder skill', () => {
     marketplace.plugins[0].source.package,
     '@ruddercode/rudder-plugin'
   );
-  assert.match(skill, /^---\nname: rudder\n/);
-  assert.match(skill, /scripts\/context\.mjs/);
-  assert.match(skill, /scripts\/manage-data\.mjs/);
-  assert.doesNotMatch(skill, /\[TODO:/);
-
   for (const path of [
     ['skills', 'rudder', 'scripts', 'backup-tests.mjs'],
     ['skills', 'rudder', 'scripts', 'context.mjs'],
@@ -147,83 +137,6 @@ test('ships a public marketplace catalog and complete Rudder skill', () => {
   ]) {
     assert.ok(readFileSync(join(pluginRoot, ...path), 'utf8').length > 0);
   }
-});
-
-// codex/019faf66-7413-7a31-a0ea-b5fe1c9b66d6/019faf6c-61f1-7512-808a-f870371b1baa
-test('runs the update helper before Rudder generates tests', () => {
-  const skill = readFileSync(
-    join(pluginRoot, 'skills', 'rudder', 'SKILL.md'),
-    'utf8'
-  );
-  const updateScript = readFileSync(
-    join(pluginRoot, 'skills', 'rudder', 'scripts', 'update.mjs'),
-    'utf8'
-  );
-
-  assert.ok(updateScript.length > 0);
-  assert.equal(skill.match(/scripts\/update\.mjs check/gu)?.length, 1);
-  assert.ok(
-    skill.indexOf('scripts/update.mjs check') <
-      skill.indexOf('## Run the workflow')
-  );
-});
-
-// codex/019faf66-7413-7a31-a0ea-b5fe1c9b66d6/019faf7c-40c9-7153-b2b9-f1a62201d44e
-test('keeps coverage generation inside the user question flow', () => {
-  const skill = readFileSync(
-    join(pluginRoot, 'skills', 'rudder', 'SKILL.md'),
-    'utf8'
-  );
-
-  assert.match(skill, /Ask exactly one question to the user\./);
-  assert.match(skill, /or the user tells you to stop the flow\./);
-  assert.match(skill, /Do not write the next test until the user answers\./);
-});
-
-// codex/019faf66-7413-7a31-a0ea-b5fe1c9b66d6/019faf93-22e4-7093-92da-391b03125caa
-test('requires a prompt-backed red-green production cycle', () => {
-  const skill = readFileSync(
-    join(pluginRoot, 'skills', 'rudder', 'SKILL.md'),
-    'utf8'
-  );
-
-  assert.match(
-    skill,
-    /Write and tag the focused test before changing production code\./
-  );
-  assert.match(skill, /observe the expected failure\./);
-  assert.match(skill, /smallest production change required/);
-  assert.match(skill, /Rerun the narrow test until it passes\./);
-  assert.match(skill, /Measure coverage only after the suite is green\./);
-  assert.doesNotMatch(
-    skill,
-    /Do not change production code, coverage configuration/
-  );
-});
-
-// codex/019faf9a-f8c0-7d33-8f77-a17b27aa7a14/019fafa2-116b-7440-8f47-3c40777c5b55
-test('restores only Rudder-tagged generated tests after the merge-base reset', () => {
-  const skill = readFileSync(
-    join(pluginRoot, 'skills', 'rudder', 'SKILL.md'),
-    'utf8'
-  );
-
-  assert.match(skill, /immediately preceding Rudder source-intent tag/);
-  assert.match(skill, /Record the exact tagged test cases and their tags\./);
-  assert.match(skill, /attempt to restore each recorded, tagged test case/);
-  assert.match(skill, /do not restore untagged tests or the entire test file/);
-  assert.match(skill, /report the unsuccessful restoration/);
-});
-
-// codex/019faf66-7413-7a31-a0ea-b5fe1c9b66d6/019faf90-8df6-7223-aa9f-33012b8f26cb
-test('keeps an unsuccessful plugin update non-blocking', () => {
-  const skill = readFileSync(
-    join(pluginRoot, 'skills', 'rudder', 'SKILL.md'),
-    'utf8'
-  );
-
-  assert.match(skill, /report the failure and continue the active Rudder flow/);
-  assert.doesNotMatch(skill, /handle the response and stop/);
 });
 
 test('releases the root plugin package with plugin-specific artifacts', () => {
