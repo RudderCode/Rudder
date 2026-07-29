@@ -1,11 +1,17 @@
 ---
 title: "Telemetry Architecture"
-summary: "Rudder telemetry is an opt-in PostHog client with a local anonymous installation identity, environment-controlled opt-out, and explicit shutdown."
+summary: "Rudder telemetry is a PostHog client with release-build token injection, local anonymous installation identity, environment-controlled opt-out, and explicit shutdown."
 topics: [architecture, runtime, telemetry, configuration]
 sources:
   - id: telemetry
     type: file
     path: src/telemetry.ts
+  - id: telemetry-build-config
+    type: file
+    path: src/telemetry-build-config.ts
+  - id: publish-workflow
+    type: file
+    path: .github/workflows/publish.yml
   - id: db-client
     type: file
     path: src/db/client.ts
@@ -14,11 +20,11 @@ sources:
     path: package.json
 ---
 
-Rudder telemetry is opt-in runtime infrastructure around `posthog-node`. The module creates a PostHog client only when `POSTHOG_API_KEY` is non-empty and `DO_NOT_TRACK` is not set to `1`; otherwise capture calls are no-ops through optional chaining [@telemetry]. When enabled, events use a stable anonymous installation id stored as `identity.json` under the same Rudder home directory used by [Local State](local-state) [@telemetry] [@db-client]. The package baseline includes `posthog-node` as a runtime dependency, and the telemetry module owns the client lifecycle through capture helpers and an async `shutdown()` function [@package-json] [@telemetry].
+Rudder telemetry is runtime infrastructure around `posthog-node`. The module creates a PostHog client only when a project token is available and `DO_NOT_TRACK` is not set to `1`; otherwise capture calls are no-ops through optional chaining [@telemetry]. Source builds keep the built-in token empty, while the publish workflow rewrites `src/telemetry-build-config.ts` in the release workspace before bundling so published hooks can carry release telemetry defaults without requiring user environment variables [@telemetry-build-config] [@publish-workflow]. When enabled, events use a stable anonymous installation id stored as `identity.json` under the same Rudder home directory used by [Local State](local-state) [@telemetry] [@db-client]. The package lists `posthog-node` in development dependencies and bundles the hook output, so the published plugin still contains telemetry code without declaring a runtime `dependencies` field [@package-json]. The telemetry module owns the client lifecycle through capture helpers and an async `shutdown()` function [@telemetry].
 
 ## Enablement Boundary
 
-Telemetry enablement is decided before a client is constructed. The module reads `POSTHOG_API_KEY` into a constant, reads `POSTHOG_HOST` with the default `https://us.i.posthog.com`, and exposes `telemetryDisabled()` as the `DO_NOT_TRACK === '1'` check [@telemetry]. The internal `client()` function returns `null` when the API key is empty or telemetry is disabled, so `capture()` and `captureException()` can safely call it without requiring callers to branch on configuration [@telemetry].
+Telemetry enablement is decided before a client is constructed. The module chooses the project token from `POSTHOG_PROJECT_TOKEN`, then `POSTHOG_API_KEY`, then `BUILT_IN_POSTHOG_PROJECT_TOKEN`; it chooses the host from `POSTHOG_HOST`, then `BUILT_IN_POSTHOG_HOST`, then `https://us.i.posthog.com` [@telemetry] [@telemetry-build-config]. `telemetryDisabled()` is the `DO_NOT_TRACK === '1'` check [@telemetry]. The internal `client()` function returns `null` when the selected token is empty or telemetry is disabled, so `capture()` and `captureException()` can safely call it without requiring callers to branch on configuration [@telemetry].
 
 When a client is created, it is cached in `_client` and configured with the selected host, `flushAt: 1`, `flushInterval: 0`, and exception autocapture enabled [@telemetry]. The flush settings fit short-lived CLI invocations because each event is sent immediately instead of waiting for a larger batch [@telemetry].
 

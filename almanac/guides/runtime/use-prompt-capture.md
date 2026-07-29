@@ -1,6 +1,6 @@
 ---
 title: "Use Prompt Capture"
-summary: "Use prompt capture explains how runtime, hook, and skill code should store, query, disable, and delete Rudder's local prompt records."
+summary: "Use prompt capture explains how runtime, hook, and skill code should store, query, and delete Rudder's local prompt records."
 topics: [guides, runtime, prompt-capture, prompt-history, database]
 sources:
   - id: db-client
@@ -12,9 +12,9 @@ sources:
   - id: prompt-tagger
     type: file
     path: src/prompt-tagger.ts
-  - id: prompt-control
+  - id: transcript
     type: file
-    path: src/prompt-control.ts
+    path: src/transcript.ts
   - id: hook-bin
     type: file
     path: bin/rudder-prompt-hook.ts
@@ -47,7 +47,7 @@ Installed plugin hooks also need the migration folder that ships inside the pack
 
 ## Record Hook Events
 
-Use `recordPromptHookEvent(source, payload, fallbackCwd?)` for provider hook payloads. The helper supports `claude-code`, `codex`, and `cursor` sources, maps submit events to `recordPromptBranch()`, and maps `Stop` to `reconcilePromptBranch()` [@prompt-hook]. It returns `null` without writing when prompt capture is disabled [@prompt-hook] [@prompt-control].
+Use `recordPromptHookEvent(source, payload, fallbackCwd?)` for provider hook payloads. The helper supports `claude-code`, `codex`, and `cursor` sources, maps submit events to `recordPromptBranch()`, and maps `Stop` to `reconcilePromptBranch()` [@prompt-hook]. Submit payloads may include `transcript_path`; when present, Rudder reads the latest assistant text from the transcript and stores it as `previous_agent_output` if the transcript contains visible assistant output [@prompt-hook] [@transcript].
 
 Use the executable path for plugin hook commands. `bin/rudder-prompt-hook.ts` reads JSON from stdin, infers the source from `PLUGIN_ROOT` or `CLAUDE_PLUGIN_ROOT` when a plugin host provides either variable, otherwise requires `--source <claude-code|codex|cursor>`, and closes the database handle in `finally` [@hook-bin]. Tests enforce that both direct execution and plugin-host execution produce no stdout and ignore unavailable Git context without failing the host process [@hook-tests].
 
@@ -59,6 +59,6 @@ The skill treats those helper classifications as candidates. `skills/rudder/SKIL
 
 ## Respect Data Controls
 
-Prompt capture can be disabled by setting `RUDDER_DISABLE_PROMPT_CAPTURE=1` or by creating the `prompt-capture-disabled` marker under the Rudder home directory [@prompt-control]. The `manage-data.mjs` helper reports status, writes or removes that marker for disable/enable, and deletes prompt rows only when invoked as `delete --confirm` [@data-script].
+The `manage-data.mjs` helper reports `rudderHome`, `databasePath`, and `promptCount`; it deletes prompt rows only when invoked as `delete --confirm` [@data-script]. It no longer accepts `disable` or `enable`, and the skill-runtime tests assert that `manage-data.mjs disable` fails with the usage contract [@skill-tests].
 
-Deletion is intentionally scoped to prompt records. `manage-data.mjs delete --confirm` counts rows in `prompt_branches`, enables SQLite secure deletion, deletes rows, truncates WAL, vacuums the database, and returns the remaining status [@data-script]. The skill-runtime tests enforce that an unconfirmed delete fails, confirmed deletion removes prompt records, and disable/enable toggles the capture preference [@skill-tests].
+Deletion is intentionally scoped to prompt records. `manage-data.mjs delete --confirm` counts rows in `prompt_branches`, enables SQLite secure deletion, deletes rows, truncates WAL, vacuums the database, and returns the remaining status [@data-script]. The skill-runtime tests enforce that an unconfirmed delete fails and confirmed deletion removes prompt records [@skill-tests].

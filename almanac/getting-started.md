@@ -43,19 +43,19 @@ Getting started is the entry point for reading Rudder's wiki as a future coding 
 
 Use implementation-backed pages first when a task touches existing code. [Rudder Plugin Package](architecture/tooling/plugin-package), [Prompt Branch Store](architecture/runtime/prompt-branch-store), [Rudder Skill Runtime](architecture/runtime/rudder-skill-runtime), [Local State](architecture/runtime/local-state), [Telemetry](architecture/runtime/telemetry), [Package Baseline](architecture/tooling/package-baseline), and [Contributor Automation](architecture/automation/contributor-automation) explain the current package, runtime, and automation surfaces.
 
-Protected files are a separate agent-safety boundary. Start with [Protected Paths](reference/contributor/protected-paths) when a task touches root documentation, assets, or agent compatibility paths, because Danger protects `README.md`, `LICENSE`, `CLAUDE.md`, `assets/**`, `.claude/**`, `.codex/**`, and `.cursor/**` for detected agent-authored pull requests [@dangerfile].
+Protected files are a separate agent-safety boundary. Start with [Protected Paths](reference/contributor/protected-paths) when a task touches root documentation, public docs, assets, or agent compatibility paths, because Danger protects `README.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `LICENSE`, `CLAUDE.md`, `docs/**`, `assets/**`, `.claude/**`, `.codex/**`, and `.cursor/**` for detected agent-authored pull requests [@dangerfile].
 
 ## Runtime State And Prompts
 
 The current runtime code is small but real. `rudderHome()` resolves `RUDDER_HOME` or falls back to `~/.rudder`, `dbPath()` stores `rudder.db` under that root, and `openDb()` creates the directory, restricts local state permissions when possible, enables SQLite WAL mode, sets a 5000 ms busy timeout, enables secure deletion, applies generated Drizzle migrations, and initializes Drizzle over the same SQLite client [@db-client]. Start with [Local State](architecture/runtime/local-state) for the state-root model, then read [Prompt Branch Store](architecture/runtime/prompt-branch-store) and [Prompt Branches Schema](reference/database/prompt-branches-schema) when working with implemented prompt/worktree persistence.
 
-Use [Use Prompt Capture](guides/runtime/use-prompt-capture) when hook or skill code needs to record, query, disable, or delete prompt data. The hook runtime normalizes Claude Code, Codex, and Cursor submit/stop payloads, while the skill context helper reads prompt records for the active repository branch [@prompt-hook] [@skill].
+Use [Use Prompt Capture](guides/runtime/use-prompt-capture) when hook or skill code needs to record, query, or delete prompt data. The hook runtime normalizes Claude Code, Codex, and Cursor submit/stop payloads, while the skill context helper reads prompt records for the active repository branch [@prompt-hook] [@skill].
 
-Telemetry uses the same local-state root for its anonymous identity file. It creates a PostHog client only when `POSTHOG_API_KEY` is set and `DO_NOT_TRACK` is not `1`, and its capture helpers become no-ops when the client is unavailable [@telemetry]. Read [Telemetry](architecture/runtime/telemetry) with [Environment Variables](reference/configuration/environment-variables) before changing event capture, opt-out behavior, identity storage, or shutdown behavior.
+Telemetry uses the same local-state root for its anonymous identity file. It creates a PostHog client only when a project token is available and `DO_NOT_TRACK` is not `1`, and its capture helpers become no-ops when the client is unavailable [@telemetry]. Read [Telemetry](architecture/runtime/telemetry) with [Environment Variables](reference/configuration/environment-variables) before changing event capture, opt-out behavior, identity storage, release-build telemetry defaults, or shutdown behavior.
 
 ## Plugin, Tooling, And Checks
 
-Rudder is packaged as `@ruddercode/rudder-plugin`, uses ESM, requires Node `>=23.6.0`, ships Claude Code and Codex plugin manifests, and builds a bundled prompt hook plus copied Drizzle migrations under `dist` [@package]. [Rudder Plugin Package](architecture/tooling/plugin-package) explains the plugin distribution surface; [Package Scripts](reference/tooling/package-scripts) and [TypeScript And Bundle Build](reference/tooling/typescript-build) give the exact command and compiler references.
+Rudder is packaged as `@ruddercode/rudder-plugin`, uses ESM, requires Node `>=24.0.0`, ships Claude Code and Codex plugin manifests, and builds a bundled prompt hook plus copied Drizzle migrations under `dist` [@package]. [Rudder Plugin Package](architecture/tooling/plugin-package) explains the plugin distribution surface; [Package Scripts](reference/tooling/package-scripts) and [TypeScript And Bundle Build](reference/tooling/typescript-build) give the exact command and compiler references.
 
 For branch validation, start with [Run Checks](guides/contributor/run-checks). The local check flow verifies the centralized `.agents/skills` layout and agent attribution before running package commands, and the GitHub test workflow runs Node 24, `npm ci`, `npm run check:agent-layout`, `npm run format:markdown:check`, `npm run typecheck`, `npm test`, and `npm run build` on pushes and manual dispatch [@test-workflow]. [Contributor Automation](architecture/automation/contributor-automation), [Address PR Comments](guides/contributor/address-pr-comments), and [GitHub Workflows](reference/automation/github-workflows) cover the surrounding PR and automation surfaces.
 
@@ -65,7 +65,7 @@ Release work starts from the plugin package version. The manifest stores the cur
 
 ## Product Intent
 
-The README describes Rudder's product as intent-driven test generation: it uses prompts from the current coding-agent session plus worktree changes to generate focused unit tests, run repository test and coverage tools, and ask follow-up questions until a coverage target is reached [@readme]. Read [Intent-Driven Test Generation](concepts/product/intent-driven-test-generation), [Test Intent Standards](concepts/product/test-intent-standards), and [BYOK Skill Workflow](decisions/product/byok-skill-workflow) before making product-shaping changes. [Prompt History](concepts/runtime/prompt-history) is now implemented as local prompt capture that supplies branch-specific intent to the skill [@prompt-tagger] [@skill].
+The README describes Rudder's product as intent-driven test generation: it uses prompts from the current coding-agent session plus worktree changes to generate prompt-traceable unit tests through the user's existing agent and repository tooling [@readme]. Read [Intent-Driven Test Generation](concepts/product/intent-driven-test-generation), [Test Intent Standards](concepts/product/test-intent-standards), and [BYOK Skill Workflow](decisions/product/byok-skill-workflow) before making product-shaping changes. [Prompt History](concepts/runtime/prompt-history) is now implemented as local prompt capture that supplies branch-specific intent to the skill [@prompt-tagger] [@skill].
 
 ## Common Starting Points
 
@@ -74,7 +74,7 @@ The README describes Rudder's product as intent-driven test generation: it uses 
 | Change package, tooling, automation, plugin, or runtime foundations | [Change Shared Infrastructure](guides/contributor/change-shared-infrastructure) |
 | Check protected agent paths or inline guards | [Protected Paths](reference/contributor/protected-paths) |
 | Work with local database state | [Local State](architecture/runtime/local-state) |
-| Record, query, disable, or delete prompt capture data | [Use Prompt Capture](guides/runtime/use-prompt-capture) |
+| Record, query, or delete prompt capture data | [Use Prompt Capture](guides/runtime/use-prompt-capture) |
 | Change the installed skill workflow or helper scripts | [Rudder Skill Runtime](architecture/runtime/rudder-skill-runtime) |
 | Change telemetry behavior | [Telemetry](architecture/runtime/telemetry) |
 | Validate a branch | [Run Checks](guides/contributor/run-checks) |

@@ -1,27 +1,30 @@
 ---
 title: "Local State"
-summary: "Rudder keeps runtime state in a user-scoped home directory that owns the SQLite database, prompt-capture preference, telemetry identity file, and dashboard port defaults."
+summary: "Rudder keeps runtime state in a user-scoped home directory that owns the SQLite database, telemetry identity, update-check cache, backups, and dashboard port defaults."
 topics: [architecture, runtime, local-state, sqlite, prompt-capture]
 sources:
   - id: db-client
     type: file
     path: src/db/client.ts
-  - id: prompt-control
-    type: file
-    path: src/prompt-control.ts
   - id: telemetry
     type: file
     path: src/telemetry.ts
+  - id: update-script
+    type: file
+    path: skills/rudder/scripts/update.mjs
+  - id: backup-script
+    type: file
+    path: skills/rudder/scripts/backup-tests.mjs
   - id: gitignore
     type: file
     path: .gitignore
 ---
 
-Rudder local state is the small persistent runtime surface that exists outside the source tree. The database client resolves a Rudder home directory from `RUDDER_HOME` or `~/.rudder`, stores the SQLite database at `rudder.db`, opens that database through a process-wide singleton, enables WAL journaling, applies generated Drizzle migrations, and then exposes Drizzle access [@db-client]. The same home directory stores the prompt-capture disable marker and anonymous telemetry identity file, so [Prompt Branch Store](prompt-branch-store), prompt controls, and [Telemetry](telemetry) share one local state root [@prompt-control] [@telemetry]. Runtime artifacts live under the selected Rudder home instead of a repository-local state directory, while the source tree keeps only the code and configuration that derive those paths [@db-client] [@gitignore].
+Rudder local state is the small persistent runtime surface that exists outside the source tree. The database client resolves a Rudder home directory from `RUDDER_HOME` or `~/.rudder`, stores the SQLite database at `rudder.db`, opens that database through a process-wide singleton, enables WAL journaling, applies generated Drizzle migrations, and then exposes Drizzle access [@db-client]. The same home directory stores the anonymous telemetry identity file, the update-check cache, and skill-created test-reset backups, so [Prompt Branch Store](prompt-branch-store), [Telemetry](telemetry), and the skill runtime share one local state root [@telemetry] [@update-script] [@backup-script]. Runtime artifacts live under the selected Rudder home instead of a repository-local state directory, while the source tree keeps only the code and configuration that derive those paths [@db-client] [@gitignore].
 
 ## State Root
 
-`rudderHome()` is the owner of the local state path. It returns `process.env.RUDDER_HOME` when that value is present, and otherwise joins the operating-system home directory with `.rudder` [@db-client]. `dbPath()` derives the database location by joining that root with `rudder.db`, and `promptCaptureDisabledPath()` derives the persistent capture preference as `<rudderHome()>/prompt-capture-disabled` [@db-client] [@prompt-control].
+`rudderHome()` is the owner of the local state path. It returns `process.env.RUDDER_HOME` when that value is present, and otherwise joins the operating-system home directory with `.rudder` [@db-client]. `dbPath()` derives the database location by joining that root with `rudder.db` [@db-client]. The update helper derives `<rudderHome()>/update-state.json`, and the backup helper writes test-reset backups under `<rudderHome()>/backups/` [@update-script] [@backup-script].
 
 The source tree does not carry a repo-local state directory convention. The repository ignore file covers dependencies, build output, generated backups, logs, environment files, coverage, and editor files, but it does not define a `.rudder/` workspace cache [@gitignore]. The runtime code instead creates the selected Rudder home directory directly, so changing the state location is an environment-variable choice rather than a working-tree layout change [@db-client].
 
@@ -37,4 +40,4 @@ Migration application is deliberately part of the open flow. `openDb()` derives 
 
 ## Shared Boundary
 
-Local state currently covers the SQLite database path, the prompt-capture preference marker, the telemetry identity file, and the dashboard port default. Telemetry builds `identity.json` under `rudderHome()`, reads an existing `{ id }` value when present, and writes a generated UUID there on a best-effort basis when it needs a new anonymous installation identity [@telemetry]. The important invariant is that runtime code should derive persistent paths from `rudderHome()` instead of inventing new repository-local locations. That keeps [Telemetry](telemetry), [Prompt Branch Store](prompt-branch-store), prompt controls, and the environment-variable reference aligned around the same state root [@db-client] [@prompt-control].
+Local state currently covers the SQLite database path, the telemetry identity file, the update-check cache, skill backup directories, and the dashboard port default. Telemetry builds `identity.json` under `rudderHome()`, reads an existing `{ id }` value when present, and writes a generated UUID there on a best-effort basis when it needs a new anonymous installation identity [@telemetry]. The update helper writes `update-state.json` atomically through a temporary file with mode `0600` after creating the Rudder home with mode `0700` [@update-script]. The important invariant is that runtime code should derive persistent paths from `rudderHome()` instead of inventing new repository-local locations. That keeps [Telemetry](telemetry), [Prompt Branch Store](prompt-branch-store), the update helper, and the environment-variable reference aligned around the same state root [@db-client] [@telemetry] [@update-script].
