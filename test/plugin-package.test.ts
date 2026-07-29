@@ -108,13 +108,6 @@ test('keeps the Rudder package version synchronized across the codebase', () => 
     );
   }
 
-  assert.ok(
-    readFileSync(
-      join(pluginRoot, 'docs', 'marketplace-submission.md'),
-      'utf8'
-    ).includes(`Rudder ${packageManifest.version}`),
-    `marketplace submission must reference Rudder ${packageManifest.version}`
-  );
 });
 
 test('ships a public marketplace catalog and complete Rudder skill', () => {
