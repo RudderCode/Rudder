@@ -1,6 +1,6 @@
 ---
 name: rudder
-description: Generate and verify focused unit tests for branch changes using locally captured coding-session intent and the repository's native tooling. Use when the user asks to run Rudder, create or regenerate tests for current work, reach a coverage target, inspect captured Rudder context, disable or enable prompt capture, or delete Rudder prompt data. Do not use for unrelated test maintenance or requests to change production code.
+description: Generate and verify focused unit tests for branch changes using locally captured coding-session intent and the repository's native tooling. Use when the user asks to run Rudder, create or regenerate tests for current work, reach a coverage target, inspect captured Rudder context, or delete Rudder prompt data. Do not use for unrelated test maintenance or requests to change production code.
 ---
 
 # Rudder
@@ -10,17 +10,14 @@ Keep prompt data and generation local; do not call a separate model or service.
 
 ## Handle data-control requests
 
-For requests to inspect, disable, enable, or delete Rudder data, use
+For requests to inspect or delete Rudder data, use
 `scripts/manage-data.mjs` relative to this file:
 
 ```text
 node <skill-directory>/scripts/manage-data.mjs status
-node <skill-directory>/scripts/manage-data.mjs disable
-node <skill-directory>/scripts/manage-data.mjs enable
 node <skill-directory>/scripts/manage-data.mjs delete --confirm
 ```
 
-Explain that `disable` affects future prompt capture.
 Explain that `delete --confirm` irreversibly removes all prompt records.
 Do not run deletion without the user explicitly requesting it.
 Stop after completing a data-control request.
@@ -68,13 +65,26 @@ Stop after completing a data-control request.
 7. Generate focused unit tests for changed production behavior.
    Follow existing organization, fixtures, naming, and framework conventions.
    Do not change production code, coverage configuration, or repository thresholds.
-8. Run the narrowest relevant native tests first.
+8. Tag every generated or rewritten test case with its source intent.
+   Add a single language-appropriate line comment immediately above the test case.
+   Use identifiers from the captured prompt record that requires the expectation:
+
+   ```text
+   // <source>/<sessionId>/<promptId>
+   ```
+
+   Copy each identifier exactly as returned by `scripts/context.mjs`.
+   Never copy prompt text into the test code.
+   When multiple prompts directly contribute, tag with the most relevant prompt.
+   Rerun the context helper after a follow-up answer to get its prompt record.
+   Do not tag unchanged preexisting tests, shared helpers, or fixtures.
+9. Run the narrowest relevant native tests first.
    Then run the applicable repository test and coverage commands.
    Measure changed production code when the tooling supports it.
-9. Identify failures or uncovered branches that depend on missing intent.
-   Ask one concrete question whose answer changes a test expectation.
-   Do not ask for facts inferable from the code, repository, or captured prompts.
-10. Incorporate the answer, rerun tests and coverage, and continue until the
+10. Identify failures or uncovered branches that depend on missing intent.
+    Ask one concrete question whose answer changes a test expectation.
+    Do not ask for facts inferable from code, prompts, or the repository.
+11. Incorporate the answer, rerun tests and coverage, and continue until the
     configured target passes or a concrete blocker remains.
 
 Report the requirements derived from intent and test files changed.

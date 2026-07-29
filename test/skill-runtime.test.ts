@@ -13,10 +13,6 @@ import { join } from 'node:path';
 import { after, before, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { closeDb } from '../src/db/client.ts';
-import {
-  promptCaptureDisabled,
-  setPromptCaptureEnabled,
-} from '../src/prompt-control.ts';
 import { recordPromptHookEvent } from '../src/prompt-hook.ts';
 import {
   promptsForBranch,
@@ -50,7 +46,6 @@ let root: string;
 let repo: string;
 let stateRoot: string;
 let originalRudderHome: string | undefined;
-let originalCaptureDisabled: string | undefined;
 
 function git(...args: string[]): string {
   return execFileSync('git', ['-C', repo, ...args], {
@@ -81,63 +76,51 @@ before(() => {
   git('commit', '-m', 'fixture');
 
   originalRudderHome = process.env.RUDDER_HOME;
-  originalCaptureDisabled = process.env.RUDDER_DISABLE_PROMPT_CAPTURE;
   process.env.RUDDER_HOME = stateRoot;
-  delete process.env.RUDDER_DISABLE_PROMPT_CAPTURE;
 });
 
 after(() => {
   closeDb();
   if (originalRudderHome === undefined) delete process.env.RUDDER_HOME;
   else process.env.RUDDER_HOME = originalRudderHome;
-  if (originalCaptureDisabled === undefined) {
-    delete process.env.RUDDER_DISABLE_PROMPT_CAPTURE;
-  } else {
-    process.env.RUDDER_DISABLE_PROMPT_CAPTURE = originalCaptureDisabled;
-  }
   rmSync(root, { recursive: true, force: true });
 });
 
-test('capture can be disabled by environment or persistent preference', () => {
-  process.env.RUDDER_DISABLE_PROMPT_CAPTURE = '1';
-  assert.equal(promptCaptureDisabled(), true);
-  assert.equal(
-    recordPromptHookEvent('codex', {
-      hook_event_name: 'UserPromptSubmit',
-      session_id: 'disabled-environment',
-      prompt: 'Do not retain this prompt.',
-      cwd: repo,
-    }),
-    null
-  );
-  delete process.env.RUDDER_DISABLE_PROMPT_CAPTURE;
-
-  setPromptCaptureEnabled(false);
-  assert.equal(promptCaptureDisabled(), true);
-  assert.equal(
-    recordPromptHookEvent('claude-code', {
-      hook_event_name: 'UserPromptSubmit',
-      session_id: 'disabled-preference',
-      prompt: 'Do not retain this prompt either.',
-      cwd: repo,
-    }),
-    null
-  );
-  assert.deepEqual(promptsForSession('codex', 'disabled-environment'), []);
-  assert.deepEqual(promptsForSession('claude-code', 'disabled-preference'), []);
-
-  setPromptCaptureEnabled(true);
-  assert.equal(promptCaptureDisabled(), false);
+test('data controls do not permit disabling prompt capture', () => {
+  const disabled = spawnSync(process.execPath, [dataScript, 'disable'], {
+    encoding: 'utf8',
+    env: { ...process.env, RUDDER_HOME: stateRoot },
+  });
+  assert.equal(disabled.status, 1);
+  assert.match(disabled.stderr, /status\|delete/);
 });
 
 test('the skill helper returns branch changes and locally captured intent', () => {
-  recordPromptHookEvent('codex', {
-    hook_event_name: 'UserPromptSubmit',
-    session_id: 'skill-context',
-    turn_id: 'skill-turn',
-    prompt: 'Return cached data when the request times out.',
-    cwd: repo,
-  });
+  const originalCaptureDisabled = process.env.RUDDER_DISABLE_PROMPT_CAPTURE;
+  mkdirSync(stateRoot, { recursive: true });
+  writeFileSync(
+    join(stateRoot, 'prompt-capture-disabled'),
+    'legacy preference\n'
+  );
+  process.env.RUDDER_DISABLE_PROMPT_CAPTURE = '1';
+  try {
+    assert.notEqual(
+      recordPromptHookEvent('codex', {
+        hook_event_name: 'UserPromptSubmit',
+        session_id: 'skill-context',
+        turn_id: 'skill-turn',
+        prompt: 'Return cached data when the request times out.',
+        cwd: repo,
+      }),
+      null
+    );
+  } finally {
+    if (originalCaptureDisabled === undefined) {
+      delete process.env.RUDDER_DISABLE_PROMPT_CAPTURE;
+    } else {
+      process.env.RUDDER_DISABLE_PROMPT_CAPTURE = originalCaptureDisabled;
+    }
+  }
   mkdirSync(join(repo, 'src'));
   mkdirSync(join(repo, 'test'));
   writeFileSync(join(repo, 'src', 'feature.ts'), 'export const feature = true;\n');
@@ -157,12 +140,29 @@ test('the skill helper returns branch changes and locally captured intent', () =
     branch: string;
     otherPaths: string[];
     testPaths: string[];
-    prompts: Array<{ promptText: string }>;
+    prompts: Array<{
+      source: string;
+      sessionId: string;
+      promptId: string;
+      promptText: string;
+    }>;
   };
 
   assert.equal(context.branch, 'main');
   assert.deepEqual(context.testPaths, ['test/feature.test.ts']);
   assert.ok(context.otherPaths.includes('src/feature.ts'));
+  assert.deepEqual(
+    {
+      source: context.prompts[0]?.source,
+      sessionId: context.prompts[0]?.sessionId,
+      promptId: context.prompts[0]?.promptId,
+    },
+    {
+      source: 'codex',
+      sessionId: 'skill-context',
+      promptId: 'skill-turn',
+    }
+  );
   assert.equal(
     context.prompts[0]?.promptText,
     'Return cached data when the request times out.'
@@ -234,6 +234,4 @@ test('data controls require confirmation and delete only prompt records', () => 
     []
   );
 
-  assert.equal(runData('disable').captureEnabled, false);
-  assert.equal(runData('enable').captureEnabled, true);
 });
