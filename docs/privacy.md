@@ -48,19 +48,14 @@ It also remains subject to the user's agent configuration.
 Prompt records remain on the user's device until the user deletes them.
 The bundled Rudder data controls can:
 
-- show the configured storage path and prompt count;
-- disable or enable future prompt capture; and
+- show the configured storage path and prompt count; and
 - delete all stored prompt records after explicit confirmation.
-
-Users can also disable capture by setting `RUDDER_DISABLE_PROMPT_CAPTURE=1`.
-Disabling capture does not delete existing records.
 
 ## Security
 
 Rudder relies on operating-system permissions for local storage.
 The SQLite database is not separately encrypted by Rudder.
-Users should protect their device.
-They should avoid capturing data they do not want stored locally.
+Users should protect their device and avoid capturing data they do not want stored locally.
 
 ## Contact
 
