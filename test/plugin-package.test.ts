@@ -252,6 +252,10 @@ test('releases the root plugin package with plugin-specific artifacts', () => {
     /POSTHOG_HOST: \$\{\{ vars\.POSTHOG_HOST \}\}/
   );
   assert.match(publishWorkflow, /src\/telemetry-build-config\.ts/);
+  assert.match(
+    publishWorkflow,
+    /--title "Rudder v\$\{\{ steps\.check\.outputs\.version \}\}"/
+  );
   assert.doesNotMatch(
     `${publishWorkflow}\n${releaseAlert}`,
     /docs\/releasing\.md|npm view "\$\{name\}" version/
