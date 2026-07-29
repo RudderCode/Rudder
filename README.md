@@ -107,7 +107,6 @@ Records are stored in a local SQLite database:
 ```
 
 Set `RUDDER_HOME` to use a different state directory.
-Set `RUDDER_DISABLE_PROMPT_CAPTURE=1` to disable future capture.
 
 The current plugin does not transmit captured prompts to RudderCode.
 Your coding agent may process that context when you invoke Rudder.
@@ -115,11 +114,9 @@ Its provider terms and configuration still apply.
 
 You can also ask the installed skill to:
 
-- show the local storage path, capture status, and prompt count;
-- disable or enable future prompt capture; or
+- show the local storage path, capture status, and prompt count; or
 - delete all stored prompt records after explicit confirmation.
 
-Disabling capture does not delete existing records.
 See the [privacy notice](./docs/privacy.md) for the complete data-handling description.
 
 ## Development
