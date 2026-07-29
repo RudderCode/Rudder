@@ -267,6 +267,14 @@ test('uses stale cache or skips the prompt when registry data is unavailable', a
     assert.equal(staleCache.latestVersion, '0.1.4');
     assert.equal(staleCache.shouldNotify, true);
     assert.equal(staleCache.source, 'stale-cache');
+    const stateAfterFailure = JSON.parse(
+      readFileSync(updateStatePath, 'utf8')
+    ) as {
+      lastCheckedAt: string;
+      latestVersion: string;
+    };
+    assert.equal(stateAfterFailure.lastCheckedAt, '2000-01-01T00:00:00.000Z');
+    assert.equal(stateAfterFailure.latestVersion, '0.1.4');
 
     rmSync(updateStatePath, { force: true });
     globalThis.fetch = async () =>

@@ -213,16 +213,11 @@ export async function checkForUpdate({ force = false } = {}) {
     tryWriteState(nextState);
     return result(currentVersion, latestVersion, 'registry');
   } catch {
-    const nextState = {
-      schemaVersion: 1,
-      lastCheckedAt: new Date(now).toISOString(),
-      latestVersion: cachedVersion(state),
-    };
-    tryWriteState(nextState);
+    const latestVersion = cachedVersion(state);
     return result(
       currentVersion,
-      cachedVersion(nextState),
-      cachedVersion(nextState) ? 'stale-cache' : 'unavailable'
+      latestVersion,
+      latestVersion ? 'stale-cache' : 'unavailable'
     );
   }
 }
