@@ -1,6 +1,11 @@
 [global]
 enable = ["MD013"]
-exclude = ["README.md", "almanac/**"]
+exclude = [
+  "README.md",
+  "CONTRIBUTING.md",
+  "CODE_OF_CONDUCT.md",
+  "almanac/**",
+]
 line-length = 80
 
 [MD013]
