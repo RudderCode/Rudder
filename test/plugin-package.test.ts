@@ -211,7 +211,7 @@ test('restores only Rudder-tagged generated tests after the merge-base reset', (
   assert.match(skill, /immediately preceding Rudder source-intent tag/);
   assert.match(skill, /Record the exact tagged test cases and their tags\./);
   assert.match(skill, /attempt to restore each recorded, tagged test case/);
-  assert.match(skill, /do not restore untagged tests or\n   the entire test file/);
+  assert.match(skill, /do not restore untagged tests or the entire test file/);
   assert.match(skill, /report the unsuccessful restoration/);
 });
 

@@ -113,15 +113,14 @@ For every new or changed expectation:
    Every generated expectation must be traceable to a prompt record.
    Otherwise, follow the question-driven coverage rules above.
 5. Show the exact tracked and untracked test paths that would be affected.
-   Before clearing them, inspect each confirmed path for test cases with an
-   immediately preceding Rudder source-intent tag in the required format:
+   Before clearing them, inspect each confirmed path for test cases with an immediately preceding Rudder source-intent tag in the required format:
 
    ```text
    <language comment> <source>/<sessionId>/<promptId>
    ```
 
-   Record the exact tagged test cases and their tags. Do not treat a tag on a
-   helper, fixture, or a non-adjacent comment as a generated test.
+   Record the exact tagged test cases and their tags.
+   Do not treat a tag on a helper, fixture, or a non-adjacent comment as a generated test.
    Request explicit confirmation before clearing any test change.
    Do not proceed on silence or an ambiguous reply.
 6. After confirmation, create a recoverable backup for the exact approved paths:
@@ -136,11 +135,9 @@ For every new or changed expectation:
 
    Verify the reported patch and copied untracked files exist.
    Then restore only the confirmed test paths to the merge-base state.
-   After that reset, attempt to restore each recorded, tagged test case with
-   its intent tag. Restore only the smallest imports, fixtures, or helpers
-   required for those test cases to compile; do not restore untagged tests or
-   the entire test file. If a tagged test cannot be isolated and restored
-   reliably, leave it in the backup and report the unsuccessful restoration.
+   After that reset, attempt to restore each recorded, tagged test case with its intent tag.
+   Restore only the smallest imports, fixtures, or helpers required for those test cases to compile; do not restore untagged tests or the entire test file.
+   If a tagged test cannot be isolated and restored reliably, leave it in the backup and report the unsuccessful restoration.
    Never use `git reset --hard`, broad `git clean`, or change production files.
 7. Generate the first pass of focused unit tests from already captured intent.
    Follow existing organization, fixtures, naming, and framework conventions.
