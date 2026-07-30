@@ -132,6 +132,7 @@ For every new or changed expectation:
 End every Rudder test-generation run by presenting a temporary Markdown report.
 Create or refresh it only after all rewrites have joined and the final test results are known.
 Do not create it while a user answer or rewrite is pending.
+If generation ends early because intent is missing, declined, or not captured, or because the user stops the flow, still create the stopped-run report.
 
 1. Rerun `scripts/context.mjs` so the report includes the latest captured follow-up answers:
 
@@ -182,7 +183,7 @@ Do not create it while a user answer or rewrite is pending.
    Format every bullet's visible text as `<test title> (<repository-relative path>:<starting line>)`.
    Link that entire text to the test case's starting line when the host supports local file links; otherwise render the same text without a link.
    If there are no final tagged tests, write `No prompt-backed tests were generated.` below the report heading.
-5. Make the report the lead item in the final response.
+5. After completion telemetry is recorded, make the report the lead item in the final response.
    Show its contents and provide its temporary file path or local file link.
 
 ## Run the workflow
@@ -264,7 +265,9 @@ Do not create it while a user answer or rewrite is pending.
     Continue asking independent questions until the batch must join.
     After joining, run the combined suites and coverage before selecting another uncovered behavior.
     Continue until the target passes or the user tells you to stop the flow.
-12. Before the final report, record the verified Rudder outcome:
+12. After the generation loop ends, including an early stop caused by user choice or missing intent, create the prompt report through step 4 of `Present the prompt report`.
+    Do not send the final response yet.
+13. After the report file is ready and before sending the final response, record the verified Rudder outcome:
 
     ```text
     node <skill-directory>/scripts/telemetry.mjs complete \
@@ -277,10 +280,12 @@ Do not create it while a user answer or rewrite is pending.
       --questions-asked <question-counter>
     ```
 
-    Use `completed` when the workflow reaches its normal report, `stopped` when it ends by user choice or missing intent, and `blocked` only for an external blocker.
+    Use `completed` when generation finishes normally and the report is ready to present.
+    Use `stopped` when generation ends by user choice or missing intent and the stopped-run report is ready to present.
+    Use `blocked` only for an external blocker, including failure to create the temporary report.
     Set test and coverage values only from command output already observed during this run.
     Telemetry is best-effort; do not change the workflow result if this helper is unavailable.
-13. After the generation loop ends, create and present the prompt report.
+14. Present the prompt report as the lead item in the final response.
 
 Report the requirements derived from intent and all files changed.
 Report commands run, coverage, unanswered ambiguities, and the backup location.
