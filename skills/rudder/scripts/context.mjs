@@ -85,6 +85,7 @@ function storedPrompts(repository, branch) {
                 session_id AS sessionId,
                 prompt_id AS promptId,
                 prompt_text AS promptText,
+                previous_agent_output AS previousAgentOutput,
                 submitted_at AS submittedAt,
                 reconciled_at AS reconciledAt
            FROM prompt_branches

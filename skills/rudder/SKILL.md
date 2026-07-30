@@ -127,6 +127,64 @@ For every new or changed expectation:
    Otherwise, run the applicable related and full test commands.
 5. Measure coverage only after the suite is green.
 
+## Present the prompt report
+
+End every Rudder test-generation run by presenting a temporary Markdown report.
+Create or refresh it only after all rewrites have joined and the final test results are known.
+Do not create it while a user answer or rewrite is pending.
+
+1. Rerun `scripts/context.mjs` so the report includes the latest captured follow-up answers:
+
+   ```text
+   node <skill-directory>/scripts/context.mjs \
+     --cwd <repository-root> \
+     --phase refresh \
+     --run-id <rudder-run-id> \
+     --base <resolved-base-ref>
+   ```
+
+2. Inspect the final affected test paths.
+   Include each generated, rewritten, or restored test case only when it still has an immediately preceding Rudder source-intent tag.
+   Match that exact `<source>/<sessionId>/<promptId>` tag to a captured prompt record; use the tag, not memory or test-file proximity, to choose the prompt group.
+3. Consolidate the included tests into one group per prompt.
+   List every final test case once under its matched prompt, and omit prompts that inspired no final test.
+   Use each test's human-readable title or description, never its code body.
+   Copy `promptText` exactly from the matched database record; do not truncate, summarize, or paraphrase it.
+   Make a concise, faithful representation of `previousAgentOutput`.
+   Do not reproduce long raw previous output or add context from model memory, the implementation, or the test diff.
+   When `previousAgentOutput` is null, use `N/A` as the context representation.
+4. Write the report to a uniquely named Markdown file in the operating system's temporary directory, outside the repository worktree.
+   Never stage it or include it among the repository files changed.
+   Use this shape:
+
+   ```markdown
+   # The tests your prompts inspired:
+
+   ## Prompt 1
+
+   | Exact prompt text | Prior agent context |
+   | --- | --- |
+   | <exact promptText> | <concise representation of previousAgentOutput> |
+
+   - [<test title> (<repository-relative test path>:<starting line>)](<absolute local test path with line target>)
+   - [<test title> (<repository-relative test path>:<starting line>)](<absolute local test path with line target>)
+
+   ## Prompt 2
+
+   | Exact prompt text | Prior agent context |
+   | --- | --- |
+   | <exact promptText> | <concise representation of previousAgentOutput> |
+
+   - [<test title> (<repository-relative test path>:<starting line>)](<absolute local test path with line target>)
+   ```
+
+   Escape table-cell, test-title, and path text when needed to keep the Markdown valid.
+   Format every bullet's visible text as `<test title> (<repository-relative path>:<starting line>)`.
+   Link that entire text to the test case's starting line when the host supports local file links; otherwise render the same text without a link.
+   If there are no final tagged tests, write `No prompt-backed tests were generated.` below the report heading.
+5. Make the report the lead item in the final response.
+   Show its contents and provide its temporary file path or local file link.
+
 ## Run the workflow
 
 1. Determine the repository root and target branch from the request.
@@ -222,6 +280,7 @@ For every new or changed expectation:
     Use `completed` when the workflow reaches its normal report, `stopped` when it ends by user choice or missing intent, and `blocked` only for an external blocker.
     Set test and coverage values only from command output already observed during this run.
     Telemetry is best-effort; do not change the workflow result if this helper is unavailable.
+13. After the generation loop ends, create and present the prompt report.
 
 Report the requirements derived from intent and all files changed.
 Report commands run, coverage, unanswered ambiguities, and the backup location.
