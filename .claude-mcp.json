@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "rudder": {
+      "command": "node",
+      "args": [
+        "--input-type=module",
+        "-e",
+        "import { resolve } from 'node:path'; import { pathToFileURL } from 'node:url'; const root = process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT || process.cwd(); await import(pathToFileURL(resolve(root, 'dist/rudder-mcp-server.mjs')).href)"
+      ],
+      "cwd": "."
+    }
+  }
+}

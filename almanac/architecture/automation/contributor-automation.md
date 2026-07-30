@@ -1,6 +1,6 @@
 ---
 title: "Contributor Automation"
-summary: "Contributor automation connects centralized agent skills, local check flows, PR-comment remediation, CI validation, and Danger-based agent guards into one guarded branch workflow."
+summary: "Contributor automation connects centralized agent skills, provider-parity checks, local check flows, PR-comment remediation, CI validation, and Danger-based agent guards into one guarded branch workflow."
 topics: [architecture, automation, contributor-workflow, validation]
 sources:
   - id: agents-readme
@@ -29,13 +29,15 @@ sources:
     path: dangerfile.ts
 ---
 
-Rudder's contributor automation is a set of local and CI gates for a repository that currently has one root plugin package and centralized agent workflows. `.agents/skills/` is the only reusable-workflow source, with `.claude/skills` and `.codex/skills` as compatibility symlinks [@agents-readme]. The `check-changed-folders` skill validates branches, verifies layout and attribution, runs local package checks, and delegates PR-comment remediation when a PR exists [@check-skill]. The `prepare-package-release` skill synchronizes package and plugin versions, ingests the complete range since the previous release, Gardens the whole CodeAlmanac wiki, and validates the prepared release [@release-skill]. GitHub Actions repeats package validation on branch pushes, while the Danger workflow enforces protected paths and inline agent guards for agent-authored pull requests [@test-workflow] [@danger-workflow] [@dangerfile].
+Rudder's contributor automation is a set of local and CI gates for a repository that currently has one root plugin package and centralized agent workflows. `.agents/skills/` is the only reusable-workflow source, with `.claude/skills` and `.codex/skills` as compatibility symlinks [@agents-readme]. The `check-changed-folders` skill validates branches, verifies provider parity, layout, and attribution, runs local package checks, and delegates PR-comment remediation when a PR exists [@check-skill]. The `prepare-package-release` skill synchronizes package and plugin versions, ingests the complete range since the previous release, Gardens the whole CodeAlmanac wiki, and validates the prepared release [@release-skill]. GitHub Actions repeats package validation on branch pushes, while the Danger workflow enforces protected paths and inline agent guards for agent-authored pull requests [@test-workflow] [@danger-workflow] [@dangerfile].
 
 ## Local Check Surface
 
-The check surface is centralized in `.agents/skills/check-changed-folders/SKILL.md` [@check-skill]. It starts by fetching `origin/main`, collecting changed files from the merge-base diff plus unstaged and staged local changes, and treating Rudder as repo-wide rather than per-package [@check-skill]. When files under `src/`, `bin/`, `test/`, package or TypeScript configuration, or `.github/` change, the package checks apply [@check-skill].
+The check surface is centralized in `.agents/skills/check-changed-folders/SKILL.md` [@check-skill]. It starts by fetching `origin/main`, collecting changed files from the merge-base diff plus unstaged and staged local changes, and treating Rudder as repo-wide rather than per-package [@check-skill]. When files under `src/`, `bin/`, `test/`, `ui/`, `.claude-plugin/`, `.codex-plugin/`, `hooks/`, `skills/`, package or TypeScript configuration, `.mcp.json`, or `.github/` change, the package checks apply [@check-skill].
 
 The centralized layout itself is a hard gate. The check skill requires `AGENTS.md` as canonical guidance, `.agents/skills/` as the only reusable workflow source, `skills/<skill-name>/agents/openai.yaml` metadata for shared skills, `.claude/skills` and `.codex/skills` symlinks to `.agents/skills`, and no `.claude/commands` aliases [@agents-readme] [@check-skill]. The [Run Checks](../../guides/contributor/run-checks) guide turns this architecture into the step-by-step contributor procedure.
+
+Provider parity is a hard local gate for provider-facing changes. The check skill treats Claude and Codex as supported providers for the same package, requires equivalent discovery, launch behavior, packaged resources, and user-facing capability, and requires regression coverage in `test/plugin-package.test.ts` or the relevant runtime test for both provider paths [@check-skill]. Provider-specific schema or environment-variable differences are allowed only when they do not become functional gaps; exceptions need an explicit user request or an unsupported provider capability, plus a reported reason and protective test for the supported path [@check-skill].
 
 Before package checks, the local flow also checks that each coding agent represented in committed work is listed as a commit author or `Co-authored-by` trailer. Agent-written uncommitted work is reported as pending attribution until it is committed; human-only changes are outside this gate [@check-skill].
 

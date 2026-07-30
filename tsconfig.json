@@ -10,11 +10,12 @@
     "strict": true,
     "skipLibCheck": true,
     "types": ["node"],
-    "lib": ["ES2023"]
+    "lib": ["ES2023", "DOM"]
   },
   "include": [
     "bin/**/*.ts",
     "dangerfile.ts",
-    "src/**/*.ts"
+    "src/**/*.ts",
+    "ui/**/*.ts"
   ]
 }

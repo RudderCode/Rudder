@@ -40,6 +40,7 @@ after(() => {
   rmSync(root, { recursive: true, force: true });
 });
 
+// codex/019fb444-8493-7973-9439-341f7b35ed2a/019fb45d-2e35-73a0-a420-e73a312bb8b8
 test('ships matching Codex and Claude plugin metadata', () => {
   const codex = JSON.parse(
     readFileSync(join(pluginRoot, '.codex-plugin', 'plugin.json'), 'utf8')
@@ -58,19 +59,77 @@ test('ships matching Codex and Claude plugin metadata', () => {
   assert.equal(packageManifest.engines.node, '>=24.0.0');
   assert.equal(packageManifest.dependencies, undefined);
   assert.equal(packageManifest.workspaces, undefined);
-  assert.equal(codex.skills, './skills/');
+  assert.equal(codex.skills, claude.skills);
   assert.equal(claude.skills, './skills/');
+  assert.equal(claude.mcpServers, './.claude-mcp.json');
+  assert.equal(codex.mcpServers, './.mcp.json');
+  assert.ok(codex.interface.capabilities.includes('Interactive'));
   assert.equal(claude.hooks, './hooks/hooks.json');
   assert.ok(codex.interface.shortDescription.length <= 30);
   assert.match(codex.interface.privacyPolicyURL, /^https:\/\//);
   assert.match(codex.interface.termsOfServiceURL, /^https:\/\//);
   assert.ok(packageManifest.files.includes('.codex-plugin'));
   assert.ok(packageManifest.files.includes('.claude-plugin'));
+  assert.ok(packageManifest.files.includes('.mcp.json'));
+  assert.ok(packageManifest.files.includes('.claude-mcp.json'));
   assert.ok(packageManifest.files.includes('assets'));
   assert.ok(packageManifest.files.includes('docs'));
   assert.ok(packageManifest.files.includes('hooks'));
   assert.ok(packageManifest.files.includes('skills'));
   assert.ok(packageManifest.files.includes('dist'));
+});
+
+// codex/019fb444-8493-7973-9439-341f7b35ed2a/019fb45a-bff9-7380-ad29-eae9c4b02ff7
+test('requires coverage for the MCP App UI sources', () => {
+  const packageManifest = JSON.parse(
+    readFileSync(join(pluginRoot, 'package.json'), 'utf8')
+  );
+
+  assert.ok(packageManifest.c8.include.includes('ui/**/*.ts'));
+  assert.match(packageManifest.scripts['test:coverage'], /diff-cover/);
+  assert.match(packageManifest.scripts['test:coverage'], /--fail-under=90/);
+  assert.match(packageManifest.scripts['test:coverage'], /--include-untracked/);
+});
+
+// codex/019fb444-8493-7973-9439-341f7b35ed2a/019fb444-892e-7462-946a-9ad14220edcc
+test('ships equivalent Claude and Codex MCP server definitions', () => {
+  const claudeMcp = JSON.parse(
+    readFileSync(join(pluginRoot, '.claude-mcp.json'), 'utf8')
+  );
+  const codexMcp = JSON.parse(
+    readFileSync(join(pluginRoot, '.mcp.json'), 'utf8')
+  );
+
+  assert.deepEqual(Object.keys(claudeMcp), ['mcpServers']);
+  assert.deepEqual(Object.keys(codexMcp), ['rudder']);
+  assert.deepEqual(claudeMcp.mcpServers, codexMcp);
+});
+
+// codex/019fb444-8493-7973-9439-341f7b35ed2a/019fb444-892e-7462-946a-9ad14220edcc
+test('ships the bundled MCP server and single-file app resource', () => {
+  const mcp = JSON.parse(
+    readFileSync(join(pluginRoot, '.mcp.json'), 'utf8')
+  );
+  const packageManifest = JSON.parse(
+    readFileSync(join(pluginRoot, 'package.json'), 'utf8')
+  );
+  const serverPath = join(pluginRoot, 'dist', 'rudder-mcp-server.mjs');
+  const appPath = join(pluginRoot, 'dist', 'rudder-app.html');
+
+  assert.deepEqual(Object.keys(mcp), ['rudder']);
+  assert.equal(mcp.rudder.command, 'node');
+  assert.equal(mcp.rudder.cwd, '.');
+  assert.deepEqual(mcp.rudder.args.slice(0, 2), [
+    '--input-type=module',
+    '-e',
+  ]);
+  assert.match(mcp.rudder.args[2], /PLUGIN_ROOT/);
+  assert.match(mcp.rudder.args[2], /CLAUDE_PLUGIN_ROOT/);
+  assert.match(mcp.rudder.args[2], /rudder-mcp-server/);
+  assert.match(packageManifest.scripts.build, /rudder-mcp-server/);
+  assert.match(packageManifest.scripts.build, /build-mcp-app/);
+  assert.ok(readFileSync(serverPath, 'utf8').length > 0);
+  assert.ok(readFileSync(appPath, 'utf8').length > 0);
 });
 
 test('keeps the Rudder package version synchronized across the codebase', () => {
