@@ -182,6 +182,35 @@ test('releases the root plugin package with plugin-specific artifacts', () => {
   );
 });
 
+// codex/019fb375-79ec-7b02-b9d8-19fc4bfcc939/019fb37b-45f5-7d20-a5e9-82491ecced7d
+test('keeps the release PostHog host explicit', () => {
+  const publishWorkflow = readFileSync(
+    join(pluginRoot, '.github', 'workflows', 'publish.yml'),
+    'utf8'
+  );
+  const telemetryBuildConfig = readFileSync(
+    join(pluginRoot, 'src', 'telemetry-build-config.ts'),
+    'utf8'
+  );
+  const telemetrySource = readFileSync(
+    join(pluginRoot, 'src', 'telemetry.ts'),
+    'utf8'
+  );
+
+  assert.match(
+    publishWorkflow,
+    /const host = process\.env\.POSTHOG_HOST\?\.trim\(\) \|\| '';/
+  );
+  assert.match(
+    telemetryBuildConfig,
+    /export const BUILT_IN_POSTHOG_HOST = '';/,
+  );
+  assert.match(
+    telemetrySource,
+    /const DEFAULT_POSTHOG_HOST = 'https:\/\/us\.i\.posthog\.com';/
+  );
+});
+
 test('registers prompt submission and stop hooks from the plugin root', () => {
   const config = JSON.parse(
     readFileSync(join(pluginRoot, 'hooks', 'hooks.json'), 'utf8')
