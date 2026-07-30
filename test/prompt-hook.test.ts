@@ -3,6 +3,7 @@ import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
 import {
   cpSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -294,6 +295,7 @@ test('the executable performs both phases without model-visible output', () => {
   assert.equal(storedPrompt?.previousAgentOutput, null);
 });
 
+// codex/019fb375-79ec-7b02-b9d8-19fc4bfcc939/019fb376-ca9b-7243-af54-c8affdbc0dc3
 test('the executable flushes metadata-only telemetry before exiting', async () => {
   closeDb();
   const capturePath = join(root, 'telemetry-capture.jsonl');
@@ -309,7 +311,7 @@ test('the executable flushes metadata-only telemetry before exiting', async () =
         env: {
           ...process.env,
           DO_NOT_TRACK: '',
-          POSTHOG_API_KEY: 'test-api-key',
+          POSTHOG_PROJECT_TOKEN: 'test-project-token',
           POSTHOG_HOST: receiver.host,
           RUDDER_HOME: process.env.RUDDER_HOME,
         },
@@ -330,7 +332,7 @@ test('the executable flushes metadata-only telemetry before exiting', async () =
       env: {
         ...process.env,
         DO_NOT_TRACK: '',
-        POSTHOG_API_KEY: 'test-api-key',
+        POSTHOG_PROJECT_TOKEN: 'test-project-token',
         POSTHOG_HOST: receiver.host,
         RUDDER_HOME: process.env.RUDDER_HOME,
       },
@@ -349,6 +351,44 @@ test('the executable flushes metadata-only telemetry before exiting', async () =
     assert.match(requestBodies, /"has_previous_agent_output":false/);
     assert.doesNotMatch(requestBodies, /This prompt must stay local/);
     assert.doesNotMatch(requestBodies, /telemetry-session|telemetry-turn/);
+  } finally {
+    await receiver.stop();
+  }
+});
+
+// codex/019fb375-79ec-7b02-b9d8-19fc4bfcc939/019fb376-ca9b-7243-af54-c8affdbc0dc3
+test('the legacy PostHog API key does not enable telemetry', async () => {
+  closeDb();
+  const capturePath = join(root, 'legacy-telemetry-capture.jsonl');
+  const receiver = await startTelemetryReceiver(capturePath);
+
+  try {
+    const stdout = execFileSync(
+      process.execPath,
+      [hookExecutable, '--source', 'codex'],
+      {
+        cwd: repo,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          DO_NOT_TRACK: '',
+          POSTHOG_API_KEY: 'legacy-api-key',
+          POSTHOG_PROJECT_TOKEN: '',
+          POSTHOG_HOST: receiver.host,
+          RUDDER_HOME: process.env.RUDDER_HOME,
+        },
+        input: JSON.stringify({
+          hook_event_name: 'UserPromptSubmit',
+          session_id: 'legacy-telemetry-session',
+          turn_id: 'legacy-telemetry-turn',
+          prompt: 'This prompt must stay local.',
+          cwd: repo,
+        }),
+      }
+    );
+
+    assert.equal(stdout, '');
+    assert.equal(existsSync(capturePath), false);
   } finally {
     await receiver.stop();
   }

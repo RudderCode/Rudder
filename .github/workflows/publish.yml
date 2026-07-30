@@ -104,8 +104,7 @@ jobs:
           import { writeFileSync } from 'node:fs';
 
           const token = process.env.POSTHOG_PROJECT_TOKEN?.trim() || '';
-          const host =
-            process.env.POSTHOG_HOST?.trim() || 'https://us.i.posthog.com';
+          const host = process.env.POSTHOG_HOST?.trim() || '';
           const source = [
             '/** Generated in the release workspace by publish.yml. */',
             `export const BUILT_IN_POSTHOG_PROJECT_TOKEN = ${JSON.stringify(token)};`,
