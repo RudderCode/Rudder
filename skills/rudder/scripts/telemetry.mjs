@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { basename, join, relative, resolve } from 'node:path';
@@ -148,18 +148,29 @@ export function captureRudderTelemetry(event, payload) {
   );
   if (!existsSync(executable)) return false;
 
-  const result = spawnSync(
-    process.execPath,
-    [executable, '--rudder-event', event],
-    {
-      encoding: 'utf8',
-      env: process.env,
-      input: JSON.stringify({ ...payload, host: host() }),
-      stdio: ['pipe', 'ignore', 'ignore'],
-      timeout: 5_000,
-    }
-  );
-  return !result.error && result.status === 0;
+  try {
+    const telemetry = spawn(
+      process.execPath,
+      [executable, '--rudder-event', event],
+      {
+        env: process.env,
+        detached: true,
+        stdio: ['pipe', 'ignore', 'ignore'],
+      }
+    );
+    telemetry.once('error', () => {
+      // Telemetry dispatch failures must not interrupt the Rudder workflow.
+    });
+    telemetry.stdin.once('error', () => {
+      // The child may exit before reading its best-effort telemetry payload.
+    });
+    telemetry.stdin.end(JSON.stringify({ ...payload, host: host() }));
+    telemetry.stdin.unref();
+    telemetry.unref();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function argumentValue(args, name, required = false) {
