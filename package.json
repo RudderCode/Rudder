@@ -47,13 +47,30 @@
     "typecheck": "tsc --noEmit",
     "build": "rm -rf dist && esbuild bin/rudder-prompt-hook.ts --bundle --platform=node --format=esm --target=node24 --outfile=dist/rudder-prompt-hook.mjs && cp -R drizzle dist/drizzle",
     "pretest": "npm run build",
-    "test": "node --test",
+    "test": "c8 node --test && diff-cover coverage/lcov.info --fail-under=80 --show-uncovered --include-untracked",
     "prepack": "npm run build",
     "prepublishOnly": "npm run typecheck && npm test"
   },
+  "c8": {
+    "all": true,
+    "include": [
+      "bin/**/*.ts",
+      "skills/**/*.mjs",
+      "src/**/*.ts"
+    ],
+    "exclude": [
+      "dist/**",
+      "test/**"
+    ],
+    "reporter": [
+      "lcov"
+    ]
+  },
   "devDependencies": {
     "@types/node": "^24",
+    "c8": "^12.0.0",
     "danger": "^13.0.10",
+    "diff-cover": "^2.0.5",
     "drizzle-kit": "1.0.0-rc.4",
     "drizzle-orm": "1.0.0-rc.4",
     "esbuild": "^0.25.12",
