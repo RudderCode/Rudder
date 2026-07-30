@@ -56,6 +56,12 @@ const updateScriptUrl = new URL(
   '../skills/rudder/scripts/update.mjs',
   import.meta.url
 );
+const currentPackageVersion = (
+  JSON.parse(readFileSync(join(pluginRoot, 'package.json'), 'utf8')) as {
+    version: string;
+  }
+).version;
+const newerPackageVersion = nextPatchVersion(currentPackageVersion);
 
 interface UpdateResult {
   currentVersion: string;
@@ -84,6 +90,14 @@ let repo: string;
 let stateRoot: string;
 let rudderRunId: string;
 let originalRudderHome: string | undefined;
+
+function nextPatchVersion(version: string): string {
+  const match = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u.exec(
+    version
+  );
+  assert.ok(match, `expected a stable semantic version, received ${version}`);
+  return `${match[1]}.${match[2]}.${Number(match[3]) + 1}`;
+}
 
 function git(...args: string[]): string {
   return execFileSync('git', ['-C', repo, ...args], {
@@ -299,7 +313,7 @@ test('caches the latest registry version while reminders continue', async () => 
   let fetchCount = 0;
   globalThis.fetch = async () => {
     fetchCount += 1;
-    return new Response(JSON.stringify({ version: '0.1.4' }), {
+    return new Response(JSON.stringify({ version: newerPackageVersion }), {
       status: 200,
       headers: { 'content-type': 'application/json' },
     });
@@ -310,8 +324,8 @@ test('caches the latest registry version while reminders continue', async () => 
     const { checkForUpdate } = await loadUpdateModule();
 
     const discovered = await checkForUpdate({ force: true });
-    assert.equal(discovered.currentVersion, '0.1.3');
-    assert.equal(discovered.latestVersion, '0.1.4');
+    assert.equal(discovered.currentVersion, currentPackageVersion);
+    assert.equal(discovered.latestVersion, newerPackageVersion);
     assert.equal(discovered.shouldNotify, true);
     assert.equal(discovered.source, 'registry');
 
@@ -327,7 +341,7 @@ test('caches the latest registry version while reminders continue', async () => 
     };
     assert.equal(state.schemaVersion, 1);
     assert.ok(Number.isFinite(Date.parse(state.lastCheckedAt)));
-    assert.equal(state.latestVersion, '0.1.4');
+    assert.equal(state.latestVersion, newerPackageVersion);
   } finally {
     globalThis.fetch = originalFetch;
     rmSync(updateStatePath, { force: true });
@@ -346,7 +360,7 @@ test('uses stale cache or skips the prompt when registry data is unavailable', a
       JSON.stringify({
         schemaVersion: 1,
         lastCheckedAt: '2000-01-01T00:00:00.000Z',
-        latestVersion: '0.1.4',
+        latestVersion: newerPackageVersion,
       })
     );
     globalThis.fetch = async () => {
@@ -356,7 +370,7 @@ test('uses stale cache or skips the prompt when registry data is unavailable', a
     const { checkForUpdate } = await loadUpdateModule();
     const staleCache = await checkForUpdate({ force: true });
 
-    assert.equal(staleCache.latestVersion, '0.1.4');
+    assert.equal(staleCache.latestVersion, newerPackageVersion);
     assert.equal(staleCache.shouldNotify, true);
     assert.equal(staleCache.source, 'stale-cache');
     const stateAfterFailure = JSON.parse(
@@ -366,7 +380,7 @@ test('uses stale cache or skips the prompt when registry data is unavailable', a
       latestVersion: string;
     };
     assert.equal(stateAfterFailure.lastCheckedAt, '2000-01-01T00:00:00.000Z');
-    assert.equal(stateAfterFailure.latestVersion, '0.1.4');
+    assert.equal(stateAfterFailure.latestVersion, newerPackageVersion);
 
     rmSync(updateStatePath, { force: true });
     globalThis.fetch = async () =>
@@ -463,7 +477,9 @@ test('retries a failed update twice without blocking the flow', async () => {
   );
   chmodSync(executable, 0o755);
   globalThis.fetch = async () =>
-    new Response(JSON.stringify({ version: '0.1.4' }), { status: 200 });
+    new Response(JSON.stringify({ version: newerPackageVersion }), {
+      status: 200,
+    });
   process.env.PATH = `${fakeBin}:${originalPath ?? ''}`;
   process.env.RUDDER_TEST_COMMAND_LOG = commandLog;
 
