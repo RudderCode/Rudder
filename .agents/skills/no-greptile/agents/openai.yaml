@@ -1,0 +1,4 @@
+interface:
+  display_name: "No Greptile"
+  short_description: "Skip Greptile review for a pull request"
+  default_prompt: "Use $no-greptile to skip Greptile review for this pull request."
