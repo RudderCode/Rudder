@@ -190,10 +190,6 @@ test('keeps the release PostHog host explicit', () => {
     join(pluginRoot, '.github', 'workflows', 'publish.yml'),
     'utf8'
   );
-  const telemetryBuildConfig = readFileSync(
-    join(pluginRoot, 'src', 'telemetry-build-config.ts'),
-    'utf8'
-  );
   const telemetrySource = readFileSync(
     join(pluginRoot, 'src', 'telemetry.ts'),
     'utf8'
@@ -204,8 +200,8 @@ test('keeps the release PostHog host explicit', () => {
     /const host = process\.env\.POSTHOG_HOST\?\.trim\(\) \|\| '';/
   );
   assert.match(
-    telemetryBuildConfig,
-    /export const BUILT_IN_POSTHOG_HOST = '';/,
+    publishWorkflow,
+    /BUILT_IN_POSTHOG_HOST = \$\{JSON\.stringify\(host\)\}/
   );
   assert.match(
     telemetrySource,

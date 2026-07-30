@@ -29,6 +29,45 @@ let originalRudderHome: string | undefined;
 const hookExecutable = fileURLToPath(new URL('../bin/rudder-prompt-hook.ts', import.meta.url));
 const pluginRoot = fileURLToPath(new URL('../', import.meta.url));
 
+function buildHookWithTelemetryConfig(
+  buildRoot: string,
+  projectToken: string,
+  host: string
+): string {
+  const dist = join(buildRoot, 'dist');
+  cpSync(join(pluginRoot, 'bin'), join(buildRoot, 'bin'), {
+    recursive: true,
+  });
+  cpSync(join(pluginRoot, 'src'), join(buildRoot, 'src'), {
+    recursive: true,
+  });
+  symlinkSync(join(pluginRoot, 'node_modules'), join(buildRoot, 'node_modules'));
+  writeFileSync(
+    join(buildRoot, 'src', 'telemetry-build-config.ts'),
+    [
+      `export const BUILT_IN_POSTHOG_PROJECT_TOKEN = ${JSON.stringify(projectToken)};`,
+      `export const BUILT_IN_POSTHOG_HOST = ${JSON.stringify(host)};`,
+      '',
+    ].join('\n')
+  );
+  execFileSync(
+    join(pluginRoot, 'node_modules', '.bin', 'esbuild'),
+    [
+      join(buildRoot, 'bin', 'rudder-prompt-hook.ts'),
+      '--bundle',
+      '--platform=node',
+      '--format=esm',
+      '--target=node23',
+      `--outfile=${join(dist, 'rudder-prompt-hook.mjs')}`,
+    ],
+    {
+      cwd: buildRoot,
+      stdio: 'ignore',
+    }
+  );
+  return join(dist, 'rudder-prompt-hook.mjs');
+}
+
 function git(cwd: string, ...args: string[]): string {
   return execFileSync('git', ['-C', cwd, ...args], { encoding: 'utf8' }).trim();
 }
@@ -459,9 +498,14 @@ test('the legacy PostHog API key does not enable telemetry', async () => {
   const receiver = await startTelemetryReceiver(capturePath);
 
   try {
+    const legacyHookExecutable = buildHookWithTelemetryConfig(
+      join(root, 'legacy-build'),
+      '',
+      ''
+    );
     const stdout = execFileSync(
       process.execPath,
-      [hookExecutable, '--source', 'codex'],
+      [legacyHookExecutable, '--source', 'codex'],
       {
         cwd: repo,
         encoding: 'utf8',
@@ -496,40 +540,13 @@ test('a release build sends telemetry without user environment configuration', a
   const capturePath = join(root, 'built-telemetry-capture.jsonl');
   const receiver = await startTelemetryReceiver(capturePath);
   const releaseRoot = join(root, 'release');
-  const dist = join(releaseRoot, 'dist');
 
   try {
-    cpSync(join(pluginRoot, 'bin'), join(releaseRoot, 'bin'), {
-      recursive: true,
-    });
-    cpSync(join(pluginRoot, 'src'), join(releaseRoot, 'src'), {
-      recursive: true,
-    });
-    symlinkSync(join(pluginRoot, 'node_modules'), join(releaseRoot, 'node_modules'));
-    writeFileSync(
-      join(releaseRoot, 'src', 'telemetry-build-config.ts'),
-      [
-        "export const BUILT_IN_POSTHOG_PROJECT_TOKEN = 'built-test-project-token';",
-        `export const BUILT_IN_POSTHOG_HOST = ${JSON.stringify(receiver.host)};`,
-        '',
-      ].join('\n')
+    const releaseHookExecutable = buildHookWithTelemetryConfig(
+      releaseRoot,
+      'built-test-project-token',
+      receiver.host
     );
-    execFileSync(
-      join(pluginRoot, 'node_modules', '.bin', 'esbuild'),
-      [
-        join(releaseRoot, 'bin', 'rudder-prompt-hook.ts'),
-        '--bundle',
-        '--platform=node',
-        '--format=esm',
-        '--target=node23',
-        `--outfile=${join(dist, 'rudder-prompt-hook.mjs')}`,
-      ],
-      {
-        cwd: releaseRoot,
-        stdio: 'ignore',
-      }
-    );
-
     const environment: NodeJS.ProcessEnv = {
       ...process.env,
       RUDDER_HOME: process.env.RUDDER_HOME,
@@ -542,7 +559,7 @@ test('a release build sends telemetry without user environment configuration', a
 
     const stdout = execFileSync(
       process.execPath,
-      [join(dist, 'rudder-prompt-hook.mjs'), '--source', 'codex'],
+      [releaseHookExecutable, '--source', 'codex'],
       {
         cwd: repo,
         encoding: 'utf8',
