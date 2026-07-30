@@ -1,11 +1,17 @@
 #!/usr/bin/env node
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { existsSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { basename, join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import {
+  captureRudderTelemetry,
+  isTestPath,
+  repositoryKey,
+  testDiffLineCounts,
+} from './telemetry.mjs';
 
 function argumentValue(args, name) {
   const index = args.indexOf(name);
@@ -36,52 +42,6 @@ function gitNullList(cwd, args) {
   return output.split('\0').filter(Boolean);
 }
 
-function strippedRepositoryPath(path) {
-  return path.replace(/^\/+|\/+$/gu, '').replace(/\.git$/u, '');
-}
-
-function normalizeRepository(repository) {
-  const value = repository.trim();
-  const scp = /^(?:[^@/]+@)?([^:/]+):(.+)$/u.exec(value);
-  if (scp && !value.includes('://')) {
-    return `${scp[1].toLowerCase()}/${strippedRepositoryPath(scp[2])}`;
-  }
-
-  try {
-    const url = new URL(value);
-    if (url.protocol !== 'file:') {
-      return `${url.host.toLowerCase()}/${strippedRepositoryPath(
-        decodeURIComponent(url.pathname)
-      )}`;
-    }
-  } catch {
-    // Treat non-URL values as local paths.
-  }
-  return strippedRepositoryPath(value);
-}
-
-function repositoryKey(root, branch) {
-  const branchRemote = git(
-    root,
-    ['config', '--get', `branch.${branch}.remote`],
-    true
-  );
-  const remoteNames = [
-    branchRemote && branchRemote !== '.' ? branchRemote : null,
-    'origin',
-    ...((git(root, ['remote'], true) ?? '').split('\n').filter(Boolean)),
-  ].filter(Boolean);
-
-  for (const remoteName of new Set(remoteNames)) {
-    const remote = git(root, ['remote', 'get-url', remoteName], true);
-    if (remote) return normalizeRepository(remote);
-  }
-
-  const commonDir = git(root, ['rev-parse', '--git-common-dir']);
-  const absolute = realpathSync(resolve(root, commonDir));
-  return `local:${createHash('sha256').update(absolute).digest('hex')}`;
-}
-
 function resolveBase(root, requested) {
   const candidates = requested
     ? [requested]
@@ -103,18 +63,6 @@ function resolveBase(root, requested) {
     }
   }
   return 'HEAD';
-}
-
-function isTestPath(path) {
-  const normalized = path.replaceAll('\\', '/');
-  const file = basename(normalized);
-  return (
-    /(^|\/)(__tests__|tests?|specs?|testdata|fixtures?)(\/|$)/iu.test(
-      normalized
-    ) ||
-    /\.(test|spec)\.[^.]+$/iu.test(file) ||
-    /^(test_.+|.+_test)\.[^.]+$/iu.test(file)
-  );
 }
 
 function storedPrompts(repository, branch) {
@@ -152,6 +100,15 @@ function storedPrompts(repository, branch) {
 
 function main() {
   const args = process.argv.slice(2);
+  const phase = argumentValue(args, '--phase') ?? 'start';
+  if (phase !== 'start' && phase !== 'refresh') {
+    throw new TypeError('--phase must be start or refresh');
+  }
+  const requestedRunId = argumentValue(args, '--run-id');
+  if (phase === 'refresh' && !requestedRunId) {
+    throw new TypeError('--run-id is required when --phase is refresh');
+  }
+  const rudderRunId = requestedRunId ?? randomUUID();
   const cwd = realpathSync(argumentValue(args, '--cwd') ?? process.cwd());
   const root = git(cwd, ['rev-parse', '--show-toplevel']);
   const branch = git(root, ['symbolic-ref', '--quiet', '--short', 'HEAD']);
@@ -175,13 +132,47 @@ function main() {
   const changedPaths = [...new Set([...tracked, ...untracked])].sort();
   const testPaths = changedPaths.filter(isTestPath);
   const otherPaths = changedPaths.filter((path) => !isTestPath(path));
+  const testLines = testDiffLineCounts(root, mergeBase);
   const repository = repositoryKey(root, branch);
   const promptData = storedPrompts(repository, branch);
+  const promptSessions = new Set(
+    promptData.prompts.map(
+      (prompt) => `${prompt.source}\0${prompt.sessionId}`
+    )
+  );
+  const promptSourceCounts = {};
+  for (const prompt of promptData.prompts) {
+    const source = ['claude-code', 'codex', 'cursor'].includes(prompt.source)
+      ? prompt.source
+      : 'other';
+    promptSourceCounts[source] = (promptSourceCounts[source] ?? 0) + 1;
+  }
+  captureRudderTelemetry(
+    phase === 'start' ? 'run-started' : 'context-refreshed',
+    {
+      repository,
+      branch,
+      runId: rudderRunId,
+      capturedPromptCount: promptData.prompts.length,
+      capturedSessionCount: promptSessions.size,
+      reconciledPromptCount: promptData.prompts.filter(
+        (prompt) => prompt.reconciledAt !== null
+      ).length,
+      promptSourceCounts,
+      changedPathCount: changedPaths.length,
+      changedTestPathCount: testPaths.length,
+      changedProductionPathCount: otherPaths.length,
+      untrackedPathCount: untracked.length,
+      testLineAdditionCount: testLines.additions,
+      testLineDeletionCount: testLines.deletions,
+    }
+  );
 
   process.stdout.write(
     `${JSON.stringify(
       {
         schemaVersion: 1,
+        rudderRunId,
         root,
         repository,
         branch,
@@ -191,6 +182,8 @@ function main() {
         testPaths,
         otherPaths,
         untrackedPaths: untracked.sort(),
+        testLineAdditionCount: testLines.additions,
+        testLineDeletionCount: testLines.deletions,
         promptDatabasePath: promptData.databasePath,
         prompts: promptData.prompts,
       },

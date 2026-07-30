@@ -4,6 +4,10 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { cpSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
+import {
+  captureRudderTelemetry,
+  repositoryKey,
+} from './telemetry.mjs';
 
 function argumentValue(args, name, required = false) {
   const index = args.indexOf(name);
@@ -62,6 +66,7 @@ function safeRelativePath(root, path) {
 function main() {
   const args = process.argv.slice(2);
   const cwd = argumentValue(args, '--cwd', true);
+  const runId = argumentValue(args, '--run-id', true);
   const root = git(cwd, ['rev-parse', '--show-toplevel']);
   const baseRef = argumentValue(args, '--base') ?? 'HEAD';
   if (!git(root, ['rev-parse', '--verify', '--quiet', baseRef], true)) {
@@ -120,6 +125,24 @@ function main() {
     encoding: 'utf8',
     mode: 0o600,
   });
+  try {
+    const branch = git(
+      root,
+      ['symbolic-ref', '--quiet', '--short', 'HEAD'],
+      true
+    );
+    if (branch) {
+      captureRudderTelemetry('test-backup-created', {
+        repository: repositoryKey(root, branch),
+        branch,
+        runId,
+        approvedTestPathCount: paths.length,
+        copiedUntrackedTestPathCount: copiedUntrackedPaths.length,
+      });
+    }
+  } catch {
+    // Telemetry must not affect backup creation or its recovery metadata.
+  }
   process.stdout.write(
     `${JSON.stringify(
       { backupDirectory, metadataPath, ...metadata },

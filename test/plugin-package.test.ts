@@ -110,6 +110,7 @@ test('keeps the Rudder package version synchronized across the codebase', () => 
 
 });
 
+// codex/019fb36f-4dfe-7c91-8674-5caaf68fcced/019fb386-4741-7860-89a9-97f3697fa4f1
 test('ships a public marketplace catalog and its package resources', () => {
   const marketplace = JSON.parse(
     readFileSync(
@@ -136,6 +137,7 @@ test('ships a public marketplace catalog and its package resources', () => {
     ['skills', 'rudder', 'scripts', 'backup-tests.mjs'],
     ['skills', 'rudder', 'scripts', 'context.mjs'],
     ['skills', 'rudder', 'scripts', 'manage-data.mjs'],
+    ['skills', 'rudder', 'scripts', 'telemetry.mjs'],
     ['docs', 'install.md'],
     ['docs', 'privacy.md'],
     ['docs', 'support.md'],

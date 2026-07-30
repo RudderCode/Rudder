@@ -48,7 +48,7 @@
     "build": "rm -rf dist && esbuild bin/rudder-prompt-hook.ts --bundle --platform=node --format=esm --target=node24 --outfile=dist/rudder-prompt-hook.mjs && cp -R drizzle dist/drizzle",
     "pretest": "npm run build",
     "test": "node --test",
-    "test:coverage": "npm run build && c8 node --test && diff-cover coverage/lcov.info --fail-under=80 --show-uncovered --include-untracked",
+    "test:coverage": "npm run build && c8 node --test && diff-cover coverage/lcov.info --fail-under=90 --show-uncovered --include-untracked",
     "prepack": "npm run build",
     "prepublishOnly": "npm run typecheck && npm test"
   },

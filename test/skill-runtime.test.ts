@@ -42,6 +42,13 @@ const dataScript = join(
   'scripts',
   'manage-data.mjs'
 );
+const telemetryScript = join(
+  pluginRoot,
+  'skills',
+  'rudder',
+  'scripts',
+  'telemetry.mjs'
+);
 const updateScriptUrl = new URL(
   '../skills/rudder/scripts/update.mjs',
   import.meta.url
@@ -72,6 +79,7 @@ interface UpdateModule {
 let root: string;
 let repo: string;
 let stateRoot: string;
+let rudderRunId: string;
 let originalRudderHome: string | undefined;
 
 function git(...args: string[]): string {
@@ -126,7 +134,8 @@ test('data controls do not permit disabling prompt capture', () => {
   assert.match(disabled.stderr, /status\|delete/);
 });
 
-test('the skill helper returns branch changes and locally captured intent', () => {
+// codex/019fb36f-4dfe-7c91-8674-5caaf68fcced/019fb39d-12e9-7673-b7d7-04d6c3f27243
+test('the skill helper returns intent, run identity, and initial test lines', () => {
   const originalCaptureDisabled = process.env.RUDDER_DISABLE_PROMPT_CAPTURE;
   mkdirSync(stateRoot, { recursive: true });
   writeFileSync(
@@ -161,7 +170,15 @@ test('the skill helper returns branch changes and locally captured intent', () =
   const context = JSON.parse(
     execFileSync(
       process.execPath,
-      [contextScript, '--cwd', repo, '--base', 'HEAD'],
+      [
+        contextScript,
+        '--cwd',
+        repo,
+        '--base',
+        'HEAD',
+        '--phase',
+        'start',
+      ],
       {
         encoding: 'utf8',
         env: { ...process.env, RUDDER_HOME: stateRoot },
@@ -169,6 +186,9 @@ test('the skill helper returns branch changes and locally captured intent', () =
     )
   ) as {
     branch: string;
+    rudderRunId: string;
+    testLineAdditionCount: number;
+    testLineDeletionCount: number;
     otherPaths: string[];
     testPaths: string[];
     prompts: Array<{
@@ -180,6 +200,10 @@ test('the skill helper returns branch changes and locally captured intent', () =
   };
 
   assert.equal(context.branch, 'main');
+  assert.match(context.rudderRunId, /^[a-f0-9-]{36}$/);
+  assert.equal(context.testLineAdditionCount, 1);
+  assert.equal(context.testLineDeletionCount, 0);
+  rudderRunId = context.rudderRunId;
   assert.deepEqual(context.testPaths, ['test/feature.test.ts']);
   assert.ok(context.otherPaths.includes('src/feature.ts'));
   assert.deepEqual(
@@ -412,6 +436,7 @@ test('retries a failed update twice without blocking the flow', async () => {
   }
 });
 
+// codex/019fb36f-4dfe-7c91-8674-5caaf68fcced/019fb386-4741-7860-89a9-97f3697fa4f1
 test('the skill helper backs up only explicit test paths', () => {
   const backup = JSON.parse(
     execFileSync(
@@ -422,6 +447,8 @@ test('the skill helper backs up only explicit test paths', () => {
         repo,
         '--base',
         'HEAD',
+        '--run-id',
+        rudderRunId,
         '--path',
         'test/feature.test.ts',
       ],
@@ -452,6 +479,104 @@ test('the skill helper backs up only explicit test paths', () => {
     ),
     '/* pending */\n'
   );
+});
+
+// codex/019fb36f-4dfe-7c91-8674-5caaf68fcced/019fb39d-12e9-7673-b7d7-04d6c3f27243
+test('the skill records each behavioral question in its Rudder run', () => {
+  const question = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        telemetryScript,
+        'question-asked',
+        '--cwd',
+        repo,
+        '--run-id',
+        rudderRunId,
+        '--question-number',
+        '1',
+      ],
+      {
+        encoding: 'utf8',
+        env: { ...process.env, RUDDER_HOME: stateRoot },
+      }
+    )
+  ) as {
+    questionNumber: number;
+    telemetryDispatched: boolean;
+  };
+
+  assert.deepEqual(question, {
+    schemaVersion: 1,
+    telemetryDispatched: true,
+    questionNumber: 1,
+  });
+});
+
+// codex/019fb36f-4dfe-7c91-8674-5caaf68fcced/019fb39d-12e9-7673-b7d7-04d6c3f27243
+test('the skill reports final test lines and total Rudder questions', () => {
+  writeFileSync(
+    join(repo, 'test', 'feature.test.ts'),
+    [
+      '// codex/skill-context/skill-turn',
+      "test('returns cached data', () => {});",
+      '',
+    ].join('\n')
+  );
+  const outcome = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        telemetryScript,
+        'complete',
+        '--cwd',
+        repo,
+        '--base',
+        'HEAD',
+        '--run-id',
+        rudderRunId,
+        '--status',
+        'completed',
+        '--tests-passed',
+        'yes',
+        '--coverage-target-met',
+        'no',
+        '--questions-asked',
+        '1',
+      ],
+      {
+        encoding: 'utf8',
+        env: { ...process.env, RUDDER_HOME: stateRoot },
+      }
+    )
+  ) as {
+    telemetryDispatched: boolean;
+    status: string;
+    testsPassed: string;
+    coverageTargetMet: string;
+    changedPathCount: number;
+    changedTestPathCount: number;
+    changedProductionPathCount: number;
+    promptBackedTestCount: number;
+    finalTestLineAdditionCount: number;
+    finalTestLineDeletionCount: number;
+    questionsAskedCount: number;
+  };
+
+  assert.deepEqual(outcome, {
+    schemaVersion: 1,
+    telemetryDispatched: true,
+    status: 'completed',
+    testsPassed: 'yes',
+    coverageTargetMet: 'no',
+    changedPathCount: 2,
+    changedTestPathCount: 1,
+    changedProductionPathCount: 1,
+    promptBackedTestCount: 1,
+    finalTestLineAdditionCount: 2,
+    finalTestLineDeletionCount: 0,
+    questionsAskedCount: 1,
+  });
 });
 
 test('data controls require confirmation and delete only prompt records', () => {
