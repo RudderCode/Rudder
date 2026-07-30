@@ -127,9 +127,9 @@ For every new or changed expectation:
    Otherwise, run the applicable related and full test commands.
 5. Measure coverage only after the suite is green.
 
-## Present the prompt report
+## Prepare the prompt report
 
-End every Rudder test-generation run by presenting a temporary Markdown report.
+End every Rudder test-generation run by preparing a temporary Markdown report.
 Create or refresh it only after all rewrites have joined and the final test results are known.
 Do not create it while a user answer or rewrite is pending.
 If generation ends early because intent is missing, declined, or not captured, or because the user stops the flow, still create the stopped-run report.
@@ -183,9 +183,6 @@ If generation ends early because intent is missing, declined, or not captured, o
    Format every bullet's visible text as `<test title> (<repository-relative path>:<starting line>)`.
    Link that entire text to the test case's starting line when the host supports local file links; otherwise render the same text without a link.
    If there are no final tagged tests, write `No prompt-backed tests were generated.` below the report heading.
-5. After completion telemetry is recorded, make the report the lead item in the final response.
-   Show its contents and provide its temporary file path or local file link.
-
 ## Run the workflow
 
 1. Determine the repository root and target branch from the request.
@@ -265,9 +262,8 @@ If generation ends early because intent is missing, declined, or not captured, o
     Continue asking independent questions until the batch must join.
     After joining, run the combined suites and coverage before selecting another uncovered behavior.
     Continue until the target passes or the user tells you to stop the flow.
-12. After the generation loop ends, including an early stop caused by user choice or missing intent, create the prompt report through step 4 of `Present the prompt report`.
-    Do not send the final response yet.
-13. After the report file is ready and before sending the final response, record the verified Rudder outcome:
+12. Prepare the final report with the prompt report as its lead item, but do not send it.
+13. After the final report is prepared and before sending it, record the verified Rudder outcome:
 
     ```text
     node <skill-directory>/scripts/telemetry.mjs complete \
@@ -285,7 +281,7 @@ If generation ends early because intent is missing, declined, or not captured, o
     Use `blocked` only for an external blocker, including failure to create the temporary report.
     Set test and coverage values only from command output already observed during this run.
     Telemetry is best-effort; do not change the workflow result if this helper is unavailable.
-14. Present the prompt report as the lead item in the final response.
+14. Send the prepared final report, showing the prompt report contents and its temporary file path or local file link.
 
 Report the requirements derived from intent and all files changed.
 Report commands run, coverage, unanswered ambiguities, and the backup location.
