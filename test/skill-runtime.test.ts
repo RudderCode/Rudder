@@ -9,12 +9,15 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
+import { createServer } from 'node:http';
+import type { Socket } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, before, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { closeDb } from '../src/db/client.ts';
 import { recordPromptHookEvent } from '../src/prompt-hook.ts';
+import { captureRudderTelemetry } from '../skills/rudder/scripts/telemetry.mjs';
 import {
   promptsForBranch,
   promptsForSession,
@@ -41,6 +44,13 @@ const dataScript = join(
   'rudder',
   'scripts',
   'manage-data.mjs'
+);
+const telemetryScript = join(
+  pluginRoot,
+  'skills',
+  'rudder',
+  'scripts',
+  'telemetry.mjs'
 );
 const updateScriptUrl = new URL(
   '../skills/rudder/scripts/update.mjs',
@@ -72,6 +82,7 @@ interface UpdateModule {
 let root: string;
 let repo: string;
 let stateRoot: string;
+let rudderRunId: string;
 let originalRudderHome: string | undefined;
 
 function git(...args: string[]): string {
@@ -91,6 +102,48 @@ function runData(...args: string[]): Record<string, unknown> {
 
 async function loadUpdateModule(): Promise<UpdateModule> {
   return import(updateScriptUrl.href) as Promise<UpdateModule>;
+}
+
+async function startHangingTelemetryReceiver(): Promise<{
+  host: string;
+  received: Promise<void>;
+  stop: () => Promise<void>;
+}> {
+  let resolveReceipt: () => void;
+  const received = new Promise<void>((resolve) => {
+    resolveReceipt = resolve;
+  });
+  const sockets = new Set<Socket>();
+  const server = createServer((request) => {
+    request.resume();
+    resolveReceipt();
+  });
+  server.on('connection', (socket) => {
+    sockets.add(socket);
+    socket.once('close', () => sockets.delete(socket));
+  });
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      server.off('error', reject);
+      resolve();
+    });
+  });
+  const address = server.address();
+  if (!address || typeof address === 'string') {
+    throw new Error('telemetry receiver did not bind to a TCP port');
+  }
+
+  return {
+    host: `http://127.0.0.1:${address.port}`,
+    received,
+    stop: async () => {
+      for (const socket of sockets) socket.destroy();
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+      });
+    },
+  };
 }
 
 before(() => {
@@ -126,7 +179,8 @@ test('data controls do not permit disabling prompt capture', () => {
   assert.match(disabled.stderr, /status\|delete/);
 });
 
-test('the skill helper returns branch changes and locally captured intent', () => {
+// codex/019fb36f-4dfe-7c91-8674-5caaf68fcced/019fb39d-12e9-7673-b7d7-04d6c3f27243
+test('the skill helper returns intent, run identity, and initial test lines', () => {
   const originalCaptureDisabled = process.env.RUDDER_DISABLE_PROMPT_CAPTURE;
   mkdirSync(stateRoot, { recursive: true });
   writeFileSync(
@@ -161,7 +215,15 @@ test('the skill helper returns branch changes and locally captured intent', () =
   const context = JSON.parse(
     execFileSync(
       process.execPath,
-      [contextScript, '--cwd', repo, '--base', 'HEAD'],
+      [
+        contextScript,
+        '--cwd',
+        repo,
+        '--base',
+        'HEAD',
+        '--phase',
+        'start',
+      ],
       {
         encoding: 'utf8',
         env: { ...process.env, RUDDER_HOME: stateRoot },
@@ -169,6 +231,9 @@ test('the skill helper returns branch changes and locally captured intent', () =
     )
   ) as {
     branch: string;
+    rudderRunId: string;
+    testLineAdditionCount: number;
+    testLineDeletionCount: number;
     otherPaths: string[];
     testPaths: string[];
     prompts: Array<{
@@ -180,6 +245,10 @@ test('the skill helper returns branch changes and locally captured intent', () =
   };
 
   assert.equal(context.branch, 'main');
+  assert.match(context.rudderRunId, /^[a-f0-9-]{36}$/);
+  assert.equal(context.testLineAdditionCount, 1);
+  assert.equal(context.testLineDeletionCount, 0);
+  rudderRunId = context.rudderRunId;
   assert.deepEqual(context.testPaths, ['test/feature.test.ts']);
   assert.ok(context.otherPaths.includes('src/feature.ts'));
   assert.deepEqual(
@@ -412,6 +481,7 @@ test('retries a failed update twice without blocking the flow', async () => {
   }
 });
 
+// codex/019fb36f-4dfe-7c91-8674-5caaf68fcced/019fb386-4741-7860-89a9-97f3697fa4f1
 test('the skill helper backs up only explicit test paths', () => {
   const backup = JSON.parse(
     execFileSync(
@@ -422,6 +492,8 @@ test('the skill helper backs up only explicit test paths', () => {
         repo,
         '--base',
         'HEAD',
+        '--run-id',
+        rudderRunId,
         '--path',
         'test/feature.test.ts',
       ],
@@ -452,6 +524,176 @@ test('the skill helper backs up only explicit test paths', () => {
     ),
     '/* pending */\n'
   );
+});
+
+// codex/019fb3c6-46eb-7bc1-8367-9f8b11fbd7c2/019fb3e2-de62-7150-86a1-5e2421c5ceb6
+test('the skill telemetry dispatcher does not wait for an unresponsive receiver', async () => {
+  const receiver = await startHangingTelemetryReceiver();
+  try {
+    const startedAt = Date.now();
+    const result = spawnSync(
+      process.execPath,
+      [
+        telemetryScript,
+        'question-asked',
+        '--cwd',
+        repo,
+        '--run-id',
+        rudderRunId,
+        '--question-number',
+        '2',
+      ],
+      {
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          DO_NOT_TRACK: '',
+          POSTHOG_PROJECT_TOKEN: 'test-project-token',
+          POSTHOG_HOST: receiver.host,
+          RUDDER_HOME: stateRoot,
+        },
+      }
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.ok(
+      Date.now() - startedAt < 1_000,
+      'telemetry dispatch must not wait for the receiver response'
+    );
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(
+        () => reject(new Error('telemetry event was not dispatched')),
+        1_000
+      );
+      receiver.received.then(
+        () => {
+          clearTimeout(timeout);
+          resolve();
+        },
+        reject
+      );
+    });
+  } finally {
+    await receiver.stop();
+  }
+});
+
+// codex/019fb3c6-46eb-7bc1-8367-9f8b11fbd7c2/019fb3e2-de62-7150-86a1-5e2421c5ceb6
+test('the skill telemetry dispatcher ignores invalid payloads and launch errors', async () => {
+  assert.equal(
+    captureRudderTelemetry('question-asked', { unsupported: BigInt(1) }),
+    false
+  );
+
+  const originalExecutable = process.execPath;
+  process.execPath = join(root, 'missing-node-executable');
+  try {
+    assert.equal(
+      captureRudderTelemetry('question-asked', { questionNumber: 3 }),
+      true
+    );
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  } finally {
+    process.execPath = originalExecutable;
+  }
+});
+
+// codex/019fb36f-4dfe-7c91-8674-5caaf68fcced/019fb39d-12e9-7673-b7d7-04d6c3f27243
+test('the skill records each behavioral question in its Rudder run', () => {
+  const question = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        telemetryScript,
+        'question-asked',
+        '--cwd',
+        repo,
+        '--run-id',
+        rudderRunId,
+        '--question-number',
+        '1',
+      ],
+      {
+        encoding: 'utf8',
+        env: { ...process.env, RUDDER_HOME: stateRoot },
+      }
+    )
+  ) as {
+    questionNumber: number;
+    telemetryDispatched: boolean;
+  };
+
+  assert.deepEqual(question, {
+    schemaVersion: 1,
+    telemetryDispatched: true,
+    questionNumber: 1,
+  });
+});
+
+// codex/019fb36f-4dfe-7c91-8674-5caaf68fcced/019fb39d-12e9-7673-b7d7-04d6c3f27243
+test('the skill reports final test lines and total Rudder questions', () => {
+  writeFileSync(
+    join(repo, 'test', 'feature.test.ts'),
+    [
+      '// codex/skill-context/skill-turn',
+      "test('returns cached data', () => {});",
+      '',
+    ].join('\n')
+  );
+  const outcome = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        telemetryScript,
+        'complete',
+        '--cwd',
+        repo,
+        '--base',
+        'HEAD',
+        '--run-id',
+        rudderRunId,
+        '--status',
+        'completed',
+        '--tests-passed',
+        'yes',
+        '--coverage-target-met',
+        'no',
+        '--questions-asked',
+        '1',
+      ],
+      {
+        encoding: 'utf8',
+        env: { ...process.env, RUDDER_HOME: stateRoot },
+      }
+    )
+  ) as {
+    telemetryDispatched: boolean;
+    status: string;
+    testsPassed: string;
+    coverageTargetMet: string;
+    changedPathCount: number;
+    changedTestPathCount: number;
+    changedProductionPathCount: number;
+    promptBackedTestCount: number;
+    finalTestLineAdditionCount: number;
+    finalTestLineDeletionCount: number;
+    questionsAskedCount: number;
+  };
+
+  assert.deepEqual(outcome, {
+    schemaVersion: 1,
+    telemetryDispatched: true,
+    status: 'completed',
+    testsPassed: 'yes',
+    coverageTargetMet: 'no',
+    changedPathCount: 2,
+    changedTestPathCount: 1,
+    changedProductionPathCount: 1,
+    promptBackedTestCount: 1,
+    finalTestLineAdditionCount: 2,
+    finalTestLineDeletionCount: 0,
+    questionsAskedCount: 1,
+  });
 });
 
 test('data controls require confirmation and delete only prompt records', () => {

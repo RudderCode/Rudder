@@ -61,11 +61,21 @@ Coverage is loop control, never a source of test intent.
   implementation, improve coverage, or exercise a defensive case.
 - After the first test pass, if coverage is below the target, stop editing tests.
   Select one uncovered behavior.
+  Increment the run's question counter and best-effort record the question before showing it:
+
+  ```text
+  node <skill-directory>/scripts/telemetry.mjs question-asked \
+    --cwd <repository-root> \
+    --run-id <rudder-run-id> \
+    --question-number <question-counter>
+  ```
+
+  Do not pass the question or any answer text to the helper.
   Ask one concrete question about the expected behavior.
 - Do not write the next test until the user answers.
   Repository code may help frame the question, but it cannot supply the answer.
-- After each answer, rerun `scripts/context.mjs`, require a captured prompt
-  record for the answer, and queue only the expectation that answer authorizes.
+- After each answer, rerun `scripts/context.mjs` with `--phase refresh`, `--run-id <rudder-run-id>`, and `--base <resolved-base-ref>`.
+  Require a captured prompt record for the answer, and queue only the expectation that answer authorizes.
 - Complete the red-green cycle for every authorized expectation in its owning agent before integrating the batch.
   Use the queue answered rewrites guidance to set up owning agents.
   Do not measure coverage while a rewrite is pending.
@@ -123,15 +133,18 @@ For every new or changed expectation:
    Determine the requested coverage target.
    Prefer the repository's configured coverage threshold.
    Ask for a target only when neither the request nor repository provides one.
-2. Run `scripts/context.mjs` relative to this file with the repository working
-   directory:
+2. Run `scripts/context.mjs` relative to this file with the repository working directory:
 
    ```text
    node <skill-directory>/scripts/context.mjs \
      --cwd <repository-root> \
+     --phase start \
      [--base <target-ref>]
    ```
 
+   Retain the returned `rudderRunId` and `baseRef` for every later helper call in this run.
+   Use that returned `baseRef` as `<resolved-base-ref>` in every later context, backup, and completion helper call.
+   Initialize the run's question counter to zero.
 3. Inspect the returned merge base, changed paths, and captured prompts.
    Inspect repository instructions, the production diff, and existing tests.
    Inspect the native test and coverage configuration.
@@ -156,7 +169,8 @@ For every new or changed expectation:
    ```text
    node <skill-directory>/scripts/backup-tests.mjs \
      --cwd <repository-root> \
-     --base <target-ref> \
+     --base <resolved-base-ref> \
+     --run-id <rudder-run-id> \
      --path <test-path> \
      [--path <test-path> ...]
    ```
@@ -192,6 +206,22 @@ For every new or changed expectation:
     Continue asking independent questions until the batch must join.
     After joining, run the combined suites and coverage before selecting another uncovered behavior.
     Continue until the target passes or the user tells you to stop the flow.
+12. Before the final report, record the verified Rudder outcome:
+
+    ```text
+    node <skill-directory>/scripts/telemetry.mjs complete \
+      --cwd <repository-root> \
+      --base <resolved-base-ref> \
+      --run-id <rudder-run-id> \
+      --status <completed|stopped|blocked> \
+      --tests-passed <yes|no|unknown> \
+      --coverage-target-met <yes|no|unknown> \
+      --questions-asked <question-counter>
+    ```
+
+    Use `completed` when the workflow reaches its normal report, `stopped` when it ends by user choice or missing intent, and `blocked` only for an external blocker.
+    Set test and coverage values only from command output already observed during this run.
+    Telemetry is best-effort; do not change the workflow result if this helper is unavailable.
 
 Report the requirements derived from intent and all files changed.
 Report commands run, coverage, unanswered ambiguities, and the backup location.

@@ -295,7 +295,7 @@ test('the executable performs both phases without model-visible output', () => {
   assert.equal(storedPrompt?.previousAgentOutput, null);
 });
 
-// codex/019fb375-79ec-7b02-b9d8-19fc4bfcc939/019fb376-ca9b-7243-af54-c8affdbc0dc3
+// codex/019fb36f-4dfe-7c91-8674-5caaf68fcced/019fb386-4741-7860-89a9-97f3697fa4f1
 test('the executable flushes metadata-only telemetry before exiting', async () => {
   closeDb();
   const capturePath = join(root, 'telemetry-capture.jsonl');
@@ -343,14 +343,110 @@ test('the executable flushes metadata-only telemetry before exiting', async () =
         cwd: repo,
       }),
     });
+    execFileSync(
+      process.execPath,
+      [hookExecutable, '--rudder-event', 'run-started'],
+      {
+        cwd: repo,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          DO_NOT_TRACK: '',
+          POSTHOG_PROJECT_TOKEN: 'test-project-token',
+          POSTHOG_HOST: receiver.host,
+          RUDDER_HOME: process.env.RUDDER_HOME,
+        },
+        input: JSON.stringify({
+          host: 'codex',
+          repository: 'github.com/private/RAW-REPOSITORY',
+          branch: 'RAW-BRANCH',
+          runId: 'RAW-RUN-ID',
+          capturedPromptCount: 3,
+          capturedSessionCount: 2,
+          reconciledPromptCount: 2,
+          promptSourceCounts: { codex: 2, 'claude-code': 1 },
+          changedPathCount: 4,
+          changedTestPathCount: 1,
+          changedProductionPathCount: 3,
+          untrackedPathCount: 1,
+          testLineAdditionCount: 8,
+          testLineDeletionCount: 2,
+          inputTokens: 10,
+          model: 'RAW-MODEL',
+          toolUsage: { Read: 1 },
+          costUsd: 0.25,
+        }),
+      }
+    );
 
     const requestBodies = readFileSync(capturePath, 'utf8');
-    assert.match(requestBodies, /"event":"prompt recorded"/);
-    assert.match(requestBodies, /"event":"prompt reconciled"/);
+    assert.match(requestBodies, /"event":"rudder prompt captured"/);
+    assert.match(requestBodies, /"event":"rudder prompt reconciled"/);
+    assert.match(requestBodies, /"event":"rudder run started"/);
     assert.match(requestBodies, /"source":"codex"/);
     assert.match(requestBodies, /"has_previous_agent_output":false/);
+    assert.match(requestBodies, /"telemetry_schema_version":1/);
+    assert.match(requestBodies, /"repository_pseudonym":"[a-f0-9]{64}"/);
+    assert.match(requestBodies, /"run_pseudonym":"[a-f0-9]{64}"/);
+    assert.match(requestBodies, /"captured_prompt_count":3/);
+    assert.match(requestBodies, /"captured_session_count":2/);
+    assert.match(requestBodies, /"changed_test_path_count":1/);
+    assert.match(requestBodies, /"test_lines_added_from_base":8/);
+    assert.match(requestBodies, /"test_lines_deleted_from_base":2/);
     assert.doesNotMatch(requestBodies, /This prompt must stay local/);
     assert.doesNotMatch(requestBodies, /telemetry-session|telemetry-turn/);
+    assert.doesNotMatch(
+      requestBodies,
+      /RAW-|inputTokens|RAW-MODEL|toolUsage|costUsd/
+    );
+    assert.equal(requestBodies.includes(repo), false);
+  } finally {
+    await receiver.stop();
+  }
+});
+
+// codex/019fb36f-4dfe-7c91-8674-5caaf68fcced/019fb3a8-3fc7-7410-aa52-473842eeab9a
+test('DO_NOT_TRACK prevents Rudder event delivery and identity creation', async () => {
+  closeDb();
+  const capturePath = join(root, 'do-not-track-capture.jsonl');
+  const statePath = join(root, 'do-not-track-state');
+  const receiver = await startTelemetryReceiver(capturePath);
+
+  try {
+    execFileSync(
+      process.execPath,
+      [hookExecutable, '--rudder-event', 'run-started'],
+      {
+        cwd: repo,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          DO_NOT_TRACK: '1',
+          POSTHOG_PROJECT_TOKEN: 'test-project-token',
+          POSTHOG_HOST: receiver.host,
+          RUDDER_HOME: statePath,
+        },
+        input: JSON.stringify({
+          host: 'codex',
+          repository: 'github.com/private/repository',
+          branch: 'private-branch',
+          runId: 'private-run',
+          capturedPromptCount: 1,
+          capturedSessionCount: 1,
+          reconciledPromptCount: 1,
+          promptSourceCounts: { codex: 1 },
+          changedPathCount: 1,
+          changedTestPathCount: 1,
+          changedProductionPathCount: 0,
+          untrackedPathCount: 0,
+          testLineAdditionCount: 4,
+          testLineDeletionCount: 0,
+        }),
+      }
+    );
+
+    assert.equal(existsSync(capturePath), false);
+    assert.equal(existsSync(join(statePath, 'identity.json')), false);
   } finally {
     await receiver.stop();
   }
@@ -394,6 +490,7 @@ test('the legacy PostHog API key does not enable telemetry', async () => {
   }
 });
 
+// codex/019fb36f-4dfe-7c91-8674-5caaf68fcced/019fb386-4741-7860-89a9-97f3697fa4f1
 test('a release build sends telemetry without user environment configuration', async () => {
   closeDb();
   const capturePath = join(root, 'built-telemetry-capture.jsonl');
@@ -462,7 +559,7 @@ test('a release build sends telemetry without user environment configuration', a
 
     assert.equal(stdout, '');
     const requestBodies = readFileSync(capturePath, 'utf8');
-    assert.match(requestBodies, /"event":"prompt recorded"/);
+    assert.match(requestBodies, /"event":"rudder prompt captured"/);
     assert.doesNotMatch(
       requestBodies,
       /This built prompt must stay local|built-telemetry-session|built-telemetry-turn/

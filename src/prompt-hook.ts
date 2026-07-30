@@ -1,9 +1,13 @@
 import {
   reconcilePromptBranch,
   recordPromptBranch,
+  promptsForSession,
   type PromptBranchRow,
 } from './prompt-tagger.ts';
-import { capture } from './telemetry.ts';
+import {
+  capture,
+  type TelemetryPropertiesFactory,
+} from './telemetry.ts';
 import { readPreviousAgentOutput } from './transcript.ts';
 
 export const agentPromptSources = ['claude-code', 'codex', 'cursor'] as const;
@@ -30,12 +34,30 @@ export class PromptHookPayloadError extends TypeError {
 
 function captureHookEvent(
   event: string,
-  properties: Record<string, unknown>
+  properties: TelemetryPropertiesFactory
 ): void {
   try {
     capture(event, properties);
   } catch {
     // Telemetry is best-effort and must not change prompt hook behavior.
+  }
+}
+
+function targetBeforeReconciliation(
+  hook: NormalizedPromptHookPayload
+): PromptBranchRow | null {
+  try {
+    const rows = promptsForSession(hook.source, hook.sessionId);
+    if (hook.promptId) {
+      return rows.find((row) => row.promptId === hook.promptId) ?? null;
+    }
+    return (
+      [...rows]
+        .reverse()
+        .find((row) => row.reconciledAt === null) ?? null
+    );
+  } catch {
+    return null;
   }
 }
 
@@ -168,13 +190,19 @@ export function recordPromptHookEvent(
         : null,
       cwd: hook.cwd,
     });
-    captureHookEvent('prompt recorded', {
-      source: hook.source,
-      has_previous_agent_output: row.previousAgentOutput !== null,
+    captureHookEvent('rudder prompt captured', () => {
+      const sessionRows = promptsForSession(hook.source, hook.sessionId);
+      return {
+        source: hook.source,
+        is_session_start: sessionRows.length === 1,
+        captured_prompt_count_for_session: sessionRows.length,
+        has_previous_agent_output: row.previousAgentOutput !== null,
+      };
     });
     return row;
   }
 
+  const previousRow = targetBeforeReconciliation(hook);
   const branchInput = {
     source: hook.source,
     sessionId: hook.sessionId,
@@ -183,7 +211,13 @@ export function recordPromptHookEvent(
   };
   const row = reconcilePromptBranch(branchInput);
   if (row) {
-    captureHookEvent('prompt reconciled', { source: hook.source });
+    captureHookEvent('rudder prompt reconciled', () => {
+      return {
+        source: hook.source,
+        branch_changed:
+          previousRow === null ? null : previousRow.branch !== row.branch,
+      };
+    });
   }
   return row;
 }
