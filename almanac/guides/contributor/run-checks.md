@@ -1,6 +1,6 @@
 ---
 title: "Run Checks"
-summary: "Run checks is the repo-wide validation procedure for branch changes before commit, PR review, or publishing."
+summary: "Run checks is the repo-wide validation procedure for branch changes before commit, PR review, or publishing, including Claude/Codex provider parity for plugin-facing work."
 topics: [guides, contributor-workflow, validation]
 sources:
   - id: check-skill
@@ -19,7 +19,7 @@ sources:
 
 # Run Checks
 
-Run checks when a branch is ready for commit, PR review, or publishing validation. Rudder is one repo-wide plugin package, so the local check flow identifies branch and working-tree changes, verifies the centralized agent-instruction layout, verifies agent attribution, installs dependencies when needed, runs TypeScript, test, and build commands, and surfaces open PR comments before reporting pass, fail, pending, or skip status [@check-skill]. For background on how this guide fits the automation system, see [Contributor Automation](../../architecture/automation/contributor-automation), [Package Scripts](../../reference/tooling/package-scripts), and [GitHub Workflows](../../reference/automation/github-workflows).
+Run checks when a branch is ready for commit, PR review, or publishing validation. Rudder is one repo-wide plugin package, so the local check flow identifies branch and working-tree changes, verifies Claude/Codex provider parity when provider-facing surfaces change, verifies the centralized agent-instruction layout, verifies agent attribution, installs dependencies when needed, runs TypeScript, test, and build commands, and surfaces open PR comments before reporting pass, fail, pending, or skip status [@check-skill]. For background on how this guide fits the automation system, see [Contributor Automation](../../architecture/automation/contributor-automation), [Package Scripts](../../reference/tooling/package-scripts), and [GitHub Workflows](../../reference/automation/github-workflows).
 
 ## Start From The Branch Diff
 
@@ -32,13 +32,21 @@ git diff --name-only
 git diff --name-only --cached
 ```
 
-The check skill treats changes under `src/`, `bin/`, `test/`, package and TypeScript config files, and `.github/` as reasons to run the package checks [@check-skill]. If nothing relevant changed, report that no package checks were required instead of manufacturing a local test run [@check-skill].
+The check skill treats changes under `src/`, `bin/`, `test/`, `ui/`, `.claude-plugin/`, `.codex-plugin/`, `hooks/`, `skills/`, package and TypeScript config files, `.mcp.json`, and `.github/` as reasons to run the package checks [@check-skill]. If nothing relevant changed, report that no package checks were required instead of manufacturing a local test run [@check-skill].
 
 ## Check Agent Instruction Layout
 
 Before running package commands, verify the centralized agent-instruction layout. `AGENTS.md` is the canonical repository guidance, `.agents/skills/` is the only reusable-workflow source, each shared skill needs `skills/<skill-name>/agents/openai.yaml`, and `.claude/skills` plus `.codex/skills` must resolve to `.agents/skills` [@agents-readme] [@check-skill].
 
 The package script `check:agent-layout` enforces the symlinks, verifies that `.claude/commands` does not exist, and checks that `CLAUDE.md` contains the `@AGENTS.md` handoff [@package]. If a link is missing or resolves outside `.agents/`, mark the check as failed and report the broken path [@check-skill].
+
+## Verify Provider Parity
+
+Provider-facing work must preserve Claude and Codex as supported providers for the same Rudder plugin package [@check-skill]. When a branch changes manifest metadata, skills, hooks, MCP servers, apps, UI, or packaged artifacts, inspect both provider manifests and runtime paths before running package commands [@check-skill].
+
+The parity gate is behavioral. Discovery, launch behavior, packaged resources, and user-facing capability must be equivalent across providers; schema-specific fields or environment-variable differences are allowed only when they remain implementation details rather than functional gaps [@check-skill]. Add or update a regression assertion in `test/plugin-package.test.ts` or the relevant runtime test so both provider paths are exercised; provider-facing behavior without parity coverage fails the check [@check-skill].
+
+Provider-specific exceptions require an explicit user request or an unsupported provider capability. Report the affected provider, the reason, and the test that protects the supported behavior [@check-skill].
 
 ## Verify Agent Attribution
 
@@ -62,4 +70,4 @@ If the current branch has an open GitHub PR, run the [Address PR Comments](addre
 
 ## Report The Result
 
-The final report should include separate status lines for agent-instruction layout, agent attribution, typecheck, tests, build, and PR comments [@check-skill]. For failures, include the failing command and the key error output; distinguish real failures such as broken agent links, missing agent attribution, type errors, test failures, or unaddressed high-priority comments from environment issues such as missing CLI tools or no PR [@check-skill].
+The final report should include separate status lines for provider parity, agent-instruction layout, agent attribution, typecheck, tests, build, and PR comments [@check-skill]. For failures, include the failing command and the key error output; distinguish real failures such as provider drift, missing parity coverage, broken agent links, missing agent attribution, type errors, test failures, or unaddressed high-priority comments from environment issues such as missing CLI tools or no PR [@check-skill].
