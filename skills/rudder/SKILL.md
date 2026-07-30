@@ -74,10 +74,8 @@ Coverage is loop control, never a source of test intent.
   Ask one concrete question about the expected behavior.
 - Do not write the next test until the user answers.
   Repository code may help frame the question, but it cannot supply the answer.
-- After each answer, rerun `scripts/context.mjs` with `--phase refresh`,
-  `--run-id <rudder-run-id>`, and `--base <resolved-base-ref>`.
-  Require a captured prompt record for the answer, and queue only the
-  expectation that answer authorizes.
+- After each answer, rerun `scripts/context.mjs` with `--phase refresh`, `--run-id <rudder-run-id>`, and `--base <resolved-base-ref>`.
+  Require a captured prompt record for the answer, and queue only the expectation that answer authorizes.
 - Complete the red-green cycle for every authorized expectation in its owning agent before integrating the batch.
   Use the queue answered rewrites guidance to set up owning agents.
   Do not measure coverage while a rewrite is pending.
@@ -144,10 +142,8 @@ For every new or changed expectation:
      [--base <target-ref>]
    ```
 
-   Retain the returned `rudderRunId` and `baseRef` for every later helper call
-   in this run.
-   Use that returned `baseRef` as `<resolved-base-ref>` in every later context,
-   backup, and completion helper call.
+   Retain the returned `rudderRunId` and `baseRef` for every later helper call in this run.
+   Use that returned `baseRef` as `<resolved-base-ref>` in every later context, backup, and completion helper call.
    Initialize the run's question counter to zero.
 3. Inspect the returned merge base, changed paths, and captured prompts.
    Inspect repository instructions, the production diff, and existing tests.
