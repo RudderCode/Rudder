@@ -53,9 +53,9 @@ Use the executable path for plugin hook commands. `bin/rudder-prompt-hook.ts` re
 
 ## Query Branch Intent
 
-Use `promptsForSession(source, sessionId)` when starting from a known agent session, and use `promptsForBranch(repository, branch)` when the skill needs all prompt intent associated with a repository branch [@prompt-tagger]. `skills/rudder/scripts/context.mjs` resolves the current repository, branch, base ref, merge base, tracked and untracked changes, test-path candidates, and prompt records for that repository/branch, then prints one JSON object for the skill to inspect [@context-script].
+Use `promptsForSession(source, sessionId)` when starting from a known agent session, and use `promptsForBranch(repository, branch)` when the skill needs all prompt intent associated with a repository branch [@prompt-tagger]. `skills/rudder/scripts/context.mjs` resolves the current repository, branch, base ref, merge base, tracked and untracked changes, test-path candidates, changed test-line counts, and prompt records for that repository/branch, then prints one JSON object for the skill to inspect [@context-script]. Each prompt object includes exact text, optional previous agent output, identifiers, and submission and reconciliation timestamps [@context-script].
 
-The skill treats those helper classifications as candidates. `skills/rudder/SKILL.md` tells the agent to inspect the returned merge base, changed paths, captured prompts, repository instructions, production diff, existing tests, and native test/coverage configuration before deciding what to reset or generate [@skill].
+Start a run with `--phase start`; retain its generated `rudderRunId` and resolved `baseRef`, then use both on `--phase refresh` calls after follow-up answers and before reporting [@context-script] [@skill]. The skill treats helper classifications as candidates and requires the agent to inspect the returned merge base, changed paths, captured prompts, repository instructions, production diff, existing tests, and native test/coverage configuration before deciding what to reset or generate [@skill].
 
 ## Respect Data Controls
 

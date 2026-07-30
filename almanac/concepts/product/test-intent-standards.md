@@ -1,6 +1,6 @@
 ---
 title: "Test Intent Standards"
-summary: "Test intent standards define how Rudder ties generated tests, restored test cases, and coverage questions to captured user intent."
+summary: "Test intent standards define how Rudder ties generated tests, restored test cases, coverage questions, rewrite batches, and final reports to captured user intent."
 topics: [concepts, product-intent, test-generation-intent]
 sources:
   - id: skill
@@ -9,11 +9,14 @@ sources:
   - id: backup-script
     type: file
     path: skills/rudder/scripts/backup-tests.mjs
+  - id: context-script
+    type: file
+    path: skills/rudder/scripts/context.mjs
 ---
 
 # Test Intent Standards
 
-Test intent standards are the rules that keep Rudder's generated unit tests grounded in what the user directly intended during a coding session. They require generated or rewritten test cases to be traceable to captured prompt records, reset confirmed test paths through a recoverable backup, preserve only Rudder-tagged generated tests after that reset when they can be isolated, and use narrow questions to resolve uncovered behavior [@skill]. These standards sit inside [Intent-Driven Test Generation](intent-driven-test-generation) and constrain the [BYOK Skill Workflow](../../decisions/product/byok-skill-workflow).
+Test intent standards are the rules that keep Rudder's generated unit tests grounded in what the user directly intended during a coding session. They require generated or rewritten test cases to be traceable to captured prompt records, reset confirmed test paths through a recoverable backup, preserve only Rudder-tagged generated tests after that reset when they can be isolated, use narrow questions to resolve uncovered behavior, isolate parallel rewrites, and produce a final test-to-prompt report [@skill]. These standards sit inside [Intent-Driven Test Generation](intent-driven-test-generation) and constrain the [BYOK Skill Workflow](../../decisions/product/byok-skill-workflow).
 
 ## Direct Intent
 
@@ -38,3 +41,15 @@ The tag is a traceability contract, not a decoration. It identifies which captur
 Rudder should ask questions only when they resolve an ambiguity that changes a test expectation. After the first green test pass, if coverage is below target, the skill requires the agent to stop editing tests, select one uncovered behavior, ask one concrete question, and wait for the user's answer before writing the next test [@skill].
 
 Coverage is the loop control, not the source of intent. The skill requires a captured prompt record for each follow-up answer before adding the expectation that answer authorizes, and it stops below target when the answer is missing, declined, or not captured [@skill]. Contributors use [Run Checks](../../guides/contributor/run-checks) for the repository's validation procedure outside this product-generation loop.
+
+## Rewrite Ownership
+
+Only the main agent may ask questions or interpret a follow-up answer [@skill]. It can queue at most three independent rewrite tasks between coverage runs and at most three concurrent subagents, with each task carrying one authorized expectation, its exact source-intent tag, disjoint file ownership, repository instructions, and a narrow test command [@skill]. Rewrite workers may perform only their assigned red-green cycle; they may not ask questions, spawn agents, run coverage, commit, or cross their assigned path boundary [@skill].
+
+Coverage cannot be measured while any rewrite is pending. The main agent joins the batch, verifies tags and ownership in the combined diff, repairs failures serially, and reruns related and full suites before another coverage snapshot [@skill]. When work cannot be divided safely, the same authorized expectations run serially rather than weakening the ownership boundary [@skill].
+
+## Report Provenance
+
+The final report uses the source tag as a relational key rather than treating nearby prompts or agent memory as provenance [@skill]. After refreshing `scripts/context.mjs`, the agent matches each final generated, rewritten, or restored tagged test to the exact captured record identified by `<source>/<sessionId>/<promptId>`, groups tests once per prompt, and omits prompts with no final tagged tests [@skill] [@context-script].
+
+The report must preserve `promptText` exactly, reduce `previousAgentOutput` to a concise faithful representation or `N/A`, and identify tests by human-readable title plus path and starting line rather than copying test bodies [@skill]. It lives in a unique temporary file outside the repository and is produced for completed and intentionally stopped runs, keeping user-facing provenance separate from the committed test source [@skill].

@@ -53,7 +53,7 @@ topics:
     parents: [package, product-intent]
   - slug: product-intent
     title: Product Intent
-    description: Proposed Rudder product behavior documented as intent rather than current runtime implementation.
+    description: Rudder's prompt-backed product workflow, implemented constraints, and user-intent model.
     parents: [concepts]
   - slug: prompt-capture
     title: Prompt Capture
@@ -93,7 +93,7 @@ topics:
     parents: [runtime]
   - slug: test-generation-intent
     title: Test Generation Intent
-    description: README-backed proposed test-generation behavior and intent standards.
+    description: Intent-backed test-generation behavior, source tags, coverage questions, and workflow standards.
     parents: [product-intent]
   - slug: tooling
     title: Tooling
@@ -109,5 +109,5 @@ topics:
     parents: [contributor-workflow, package]
   - slug: wiki
     title: Wiki
-    description: CodeAlmanac wiki structure, manual pages, and reference metadata.
+    description: CodeAlmanac wiki structure, routing pages, and maintenance reference metadata.
     parents: []

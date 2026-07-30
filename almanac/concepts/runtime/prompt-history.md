@@ -18,6 +18,9 @@ sources:
   - id: context-script
     type: file
     path: skills/rudder/scripts/context.mjs
+  - id: skill
+    type: file
+    path: skills/rudder/SKILL.md
   - id: readme
     type: file
     path: README.md
@@ -31,7 +34,7 @@ Prompt history is Rudder's local record of prompt context that can explain user 
 
 The README describes Rudder as running inside the same coding-agent session where the feature was built, using that session context plus worktree changes to create tests for new production code [@readme]. In that product model, prompt history is behavioral evidence: it carries the user's stated expectations and the answers to later clarification questions [@readme].
 
-The current implementation gives the [Rudder Skill Runtime](../../architecture/runtime/rudder-skill-runtime) local prompt context for that model. The skill still asks the host coding agent to reason about behavior, inspect tests, generate new tests, and interpret coverage; prompt history is evidence for those steps, not an automatic test oracle [@context-script].
+The current implementation gives the [Rudder Skill Runtime](../../architecture/runtime/rudder-skill-runtime) local prompt context for that model. The skill still asks the host coding agent to reason about behavior, inspect tests, generate new tests, and interpret coverage; prompt history is evidence for those steps, not an automatic test oracle [@context-script]. At the end of a Rudder run, the same history supplies exact prompt text and prior agent context for the per-prompt test report, with source-intent tags providing the join key from each final test back to one prompt record [@skill] [@context-script].
 
 ## Capture Model
 
@@ -41,4 +44,4 @@ Prompt capture starts from coding-agent hooks. `recordPromptHookEvent()` normali
 
 ## Working Implication
 
-When updating the product workflow, treat prompt history as local and branch-scoped. `skills/rudder/scripts/context.mjs` reads prompt identifiers, text, and timestamps for the resolved repository and branch from `prompt_branches` and returns them beside the branch diff, so the skill can combine implementation changes with user-stated intent [@context-script]. The table can store `previous_agent_output`, but the current context helper does not include that field in the skill JSON; using previous agent output in `$rudder` requires changing the helper and its tests, not just reading the stored rows [@schema] [@context-script]. Use [Prompt Branch Store](../../architecture/runtime/prompt-branch-store), [Prompt Branches Schema](../../reference/database/prompt-branches-schema), and [Use Prompt Capture](../../guides/runtime/use-prompt-capture) for current implementation work.
+When updating the product workflow, treat prompt history as local and branch-scoped. `skills/rudder/scripts/context.mjs` reads prompt identifiers, exact text, previous agent output, submission time, and reconciliation time for the resolved repository and branch from `prompt_branches` and returns them beside the branch diff [@context-script]. The skill uses identifiers to authorize and tag expectations, copies exact `promptText` into the final report, and uses only a concise faithful representation of `previousAgentOutput`; it does not infer either value from the implementation or model memory [@skill]. Use [Prompt Branch Store](../../architecture/runtime/prompt-branch-store), [Prompt Branches Schema](../../reference/database/prompt-branches-schema), and [Use Prompt Capture](../../guides/runtime/use-prompt-capture) for current implementation work.

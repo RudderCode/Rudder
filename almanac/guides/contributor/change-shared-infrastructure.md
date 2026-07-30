@@ -61,4 +61,4 @@ npm test
 npm run build
 ```
 
-Those commands map to `tsc --noEmit`, `node --test`, and a clean esbuild bundle plus migration copy to `dist`; the Test workflow runs the same sequence after layout and Markdown checks on Node 24 [@package] [@test-workflow]. If validation fails, keep the fix inside the same shared surface when possible. If the failure points to a protected path, use [Protected Paths](../../reference/contributor/protected-paths) instead of working around the rule.
+Those commands map to `tsc --noEmit`, `node --test`, and a clean esbuild bundle plus migration copy to `dist` [@package]. CI checks out full history, runs layout and Markdown checks on Node 24, typechecks, replaces the local test command with `npm run test:coverage`, and rebuilds [@test-workflow]. The coverage script still runs the full Node suite and then requires 90% coverage for changed and untracked source lines [@package]. If validation fails, keep the fix inside the same shared surface when possible. If the failure points to a protected path, use [Protected Paths](../../reference/contributor/protected-paths) instead of working around the rule.

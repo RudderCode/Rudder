@@ -1,0 +1,4 @@
+interface:
+  display_name: "Prepare Package Release"
+  short_description: "Bump package versions and refresh Almanac docs"
+  default_prompt: "Use $prepare-package-release to prepare this version bump and refresh the CodeAlmanac wiki."
