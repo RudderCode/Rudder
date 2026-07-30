@@ -149,6 +149,7 @@ export function captureRudderTelemetry(event, payload) {
   if (!existsSync(executable)) return false;
 
   try {
+    const input = JSON.stringify({ ...payload, host: host() });
     const telemetry = spawn(
       process.execPath,
       [executable, '--rudder-event', event],
@@ -164,7 +165,7 @@ export function captureRudderTelemetry(event, payload) {
     telemetry.stdin.once('error', () => {
       // The child may exit before reading its best-effort telemetry payload.
     });
-    telemetry.stdin.end(JSON.stringify({ ...payload, host: host() }));
+    telemetry.stdin.end(input);
     telemetry.stdin.unref();
     telemetry.unref();
     return true;

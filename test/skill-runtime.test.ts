@@ -9,12 +9,15 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
+import { createServer } from 'node:http';
+import type { Socket } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, before, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { closeDb } from '../src/db/client.ts';
 import { recordPromptHookEvent } from '../src/prompt-hook.ts';
+import { captureRudderTelemetry } from '../skills/rudder/scripts/telemetry.mjs';
 import {
   promptsForBranch,
   promptsForSession,
@@ -99,6 +102,48 @@ function runData(...args: string[]): Record<string, unknown> {
 
 async function loadUpdateModule(): Promise<UpdateModule> {
   return import(updateScriptUrl.href) as Promise<UpdateModule>;
+}
+
+async function startHangingTelemetryReceiver(): Promise<{
+  host: string;
+  received: Promise<void>;
+  stop: () => Promise<void>;
+}> {
+  let resolveReceipt: () => void;
+  const received = new Promise<void>((resolve) => {
+    resolveReceipt = resolve;
+  });
+  const sockets = new Set<Socket>();
+  const server = createServer((request) => {
+    request.resume();
+    resolveReceipt();
+  });
+  server.on('connection', (socket) => {
+    sockets.add(socket);
+    socket.once('close', () => sockets.delete(socket));
+  });
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      server.off('error', reject);
+      resolve();
+    });
+  });
+  const address = server.address();
+  if (!address || typeof address === 'string') {
+    throw new Error('telemetry receiver did not bind to a TCP port');
+  }
+
+  return {
+    host: `http://127.0.0.1:${address.port}`,
+    received,
+    stop: async () => {
+      for (const socket of sockets) socket.destroy();
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+      });
+    },
+  };
 }
 
 before(() => {
@@ -479,6 +524,78 @@ test('the skill helper backs up only explicit test paths', () => {
     ),
     '/* pending */\n'
   );
+});
+
+// codex/019fb3c6-46eb-7bc1-8367-9f8b11fbd7c2/019fb3e2-de62-7150-86a1-5e2421c5ceb6
+test('the skill telemetry dispatcher does not wait for an unresponsive receiver', async () => {
+  const receiver = await startHangingTelemetryReceiver();
+  try {
+    const startedAt = Date.now();
+    const result = spawnSync(
+      process.execPath,
+      [
+        telemetryScript,
+        'question-asked',
+        '--cwd',
+        repo,
+        '--run-id',
+        rudderRunId,
+        '--question-number',
+        '2',
+      ],
+      {
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          DO_NOT_TRACK: '',
+          POSTHOG_PROJECT_TOKEN: 'test-project-token',
+          POSTHOG_HOST: receiver.host,
+          RUDDER_HOME: stateRoot,
+        },
+      }
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.ok(
+      Date.now() - startedAt < 1_000,
+      'telemetry dispatch must not wait for the receiver response'
+    );
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(
+        () => reject(new Error('telemetry event was not dispatched')),
+        1_000
+      );
+      receiver.received.then(
+        () => {
+          clearTimeout(timeout);
+          resolve();
+        },
+        reject
+      );
+    });
+  } finally {
+    await receiver.stop();
+  }
+});
+
+// codex/019fb3c6-46eb-7bc1-8367-9f8b11fbd7c2/019fb3e2-de62-7150-86a1-5e2421c5ceb6
+test('the skill telemetry dispatcher ignores invalid payloads and launch errors', async () => {
+  assert.equal(
+    captureRudderTelemetry('question-asked', { unsupported: BigInt(1) }),
+    false
+  );
+
+  const originalExecutable = process.execPath;
+  process.execPath = join(root, 'missing-node-executable');
+  try {
+    assert.equal(
+      captureRudderTelemetry('question-asked', { questionNumber: 3 }),
+      true
+    );
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  } finally {
+    process.execPath = originalExecutable;
+  }
 });
 
 // codex/019fb36f-4dfe-7c91-8674-5caaf68fcced/019fb39d-12e9-7673-b7d7-04d6c3f27243
