@@ -182,10 +182,27 @@ test('data controls do not permit disabling prompt capture', () => {
 // codex/019fb36f-4dfe-7c91-8674-5caaf68fcced/019fb39d-12e9-7673-b7d7-04d6c3f27243
 test('the skill helper returns intent, run identity, and initial test lines', () => {
   const originalCaptureDisabled = process.env.RUDDER_DISABLE_PROMPT_CAPTURE;
+  const transcriptPath = join(root, 'skill-context.jsonl');
   mkdirSync(stateRoot, { recursive: true });
   writeFileSync(
     join(stateRoot, 'prompt-capture-disabled'),
     'legacy preference\n'
+  );
+  writeFileSync(
+    transcriptPath,
+    JSON.stringify({
+      type: 'response_item',
+      payload: {
+        type: 'message',
+        role: 'assistant',
+        content: [
+          {
+            type: 'output_text',
+            text: 'The request currently throws when the cache times out.',
+          },
+        ],
+      },
+    })
   );
   process.env.RUDDER_DISABLE_PROMPT_CAPTURE = '1';
   try {
@@ -195,6 +212,7 @@ test('the skill helper returns intent, run identity, and initial test lines', ()
         session_id: 'skill-context',
         turn_id: 'skill-turn',
         prompt: 'Return cached data when the request times out.',
+        transcript_path: transcriptPath,
         cwd: repo,
       }),
       null
@@ -241,6 +259,7 @@ test('the skill helper returns intent, run identity, and initial test lines', ()
       sessionId: string;
       promptId: string;
       promptText: string;
+      previousAgentOutput: string | null;
     }>;
   };
 
@@ -266,6 +285,10 @@ test('the skill helper returns intent, run identity, and initial test lines', ()
   assert.equal(
     context.prompts[0]?.promptText,
     'Return cached data when the request times out.'
+  );
+  assert.equal(
+    context.prompts[0]?.previousAgentOutput,
+    'The request currently throws when the cache times out.'
   );
 });
 
