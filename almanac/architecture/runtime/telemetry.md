@@ -1,41 +1,73 @@
 ---
 title: "Telemetry Architecture"
-summary: "Rudder telemetry is a PostHog client with release-build token injection, local anonymous installation identity, environment-controlled opt-out, and explicit shutdown."
+summary: "Rudder telemetry uses a release-configured PostHog client, protected local identity, installation-scoped pseudonyms, and metadata-only prompt and run events with best-effort dispatch."
 topics: [architecture, runtime, telemetry, configuration]
 sources:
   - id: telemetry
     type: file
     path: src/telemetry.ts
+  - id: rudder-telemetry
+    type: file
+    path: src/rudder-telemetry.ts
   - id: telemetry-build-config
     type: file
     path: src/telemetry-build-config.ts
   - id: publish-workflow
     type: file
     path: .github/workflows/publish.yml
-  - id: db-client
+  - id: prompt-hook
     type: file
-    path: src/db/client.ts
+    path: src/prompt-hook.ts
+  - id: hook-bin
+    type: file
+    path: bin/rudder-prompt-hook.ts
+  - id: skill-telemetry
+    type: file
+    path: skills/rudder/scripts/telemetry.mjs
+  - id: context-script
+    type: file
+    path: skills/rudder/scripts/context.mjs
+  - id: backup-script
+    type: file
+    path: skills/rudder/scripts/backup-tests.mjs
   - id: package-json
     type: file
     path: package.json
 ---
 
-Rudder telemetry is runtime infrastructure around `posthog-node`. The module creates a PostHog client only when a project token is available and `DO_NOT_TRACK` is not set to `1`; otherwise capture calls are no-ops through optional chaining [@telemetry]. Source builds keep the built-in token empty, while the publish workflow rewrites `src/telemetry-build-config.ts` in the release workspace before bundling so published hooks can carry release telemetry defaults without requiring user environment variables [@telemetry-build-config] [@publish-workflow]. When enabled, events use a stable anonymous installation id stored as `identity.json` under the same Rudder home directory used by [Local State](local-state) [@telemetry] [@db-client]. The package lists `posthog-node` in development dependencies and bundles the hook output, so the published plugin still contains telemetry code without declaring a runtime `dependencies` field [@package-json]. The telemetry module owns the client lifecycle through capture helpers and an async `shutdown()` function [@telemetry].
+Rudder telemetry is a metadata-only runtime path built around `posthog-node`. `src/telemetry.ts` owns enablement, local identity, common event properties, installation-scoped pseudonymization, capture, exception reporting, and shutdown; `src/rudder-telemetry.ts` validates and translates Rudder run events; prompt hooks and skill helpers supply only the bounded inputs those layers accept [@telemetry] [@rudder-telemetry] [@prompt-hook] [@skill-telemetry]. Source builds keep the built-in token and host empty, while the publish workflow rewrites `src/telemetry-build-config.ts` in the release workspace before bundling so published hooks can carry release telemetry defaults [@telemetry-build-config] [@publish-workflow]. The package keeps `posthog-node` as a development dependency because esbuild includes it in the bundled hook rather than exposing a runtime dependency [@package-json].
 
 ## Enablement Boundary
 
-Telemetry enablement is decided before a client is constructed. The module chooses the project token from `POSTHOG_PROJECT_TOKEN`, then `POSTHOG_API_KEY`, then `BUILT_IN_POSTHOG_PROJECT_TOKEN`; it chooses the host from `POSTHOG_HOST`, then `BUILT_IN_POSTHOG_HOST`, then `https://us.i.posthog.com` [@telemetry] [@telemetry-build-config]. `telemetryDisabled()` is the `DO_NOT_TRACK === '1'` check [@telemetry]. The internal `client()` function returns `null` when the selected token is empty or telemetry is disabled, so `capture()` and `captureException()` can safely call it without requiring callers to branch on configuration [@telemetry].
+Telemetry enablement is decided before a client or event-property factory is used. The module chooses the project token from `POSTHOG_PROJECT_TOKEN` and then `BUILT_IN_POSTHOG_PROJECT_TOKEN`; it no longer reads `POSTHOG_API_KEY` [@telemetry]. It chooses the host from `POSTHOG_HOST`, then `BUILT_IN_POSTHOG_HOST`, then `https://us.i.posthog.com` [@telemetry] [@telemetry-build-config]. `telemetryDisabled()` checks exactly `DO_NOT_TRACK === '1'` [@telemetry]. The internal `client()` returns `null` when the selected token is empty or telemetry is disabled, so capture calls remain no-ops and do not evaluate their lazy property factories on a disabled path [@telemetry].
 
 When a client is created, it is cached in `_client` and configured with the selected host, `flushAt: 1`, `flushInterval: 0`, and exception autocapture enabled [@telemetry]. The flush settings fit short-lived CLI invocations because each event is sent immediately instead of waiting for a larger batch [@telemetry].
 
-## Anonymous Identity
+## Identity And Pseudonyms
 
-Telemetry does not use a user account identity. `distinctId()` lazily loads or creates a stable anonymous id and caches it in `_distinctId` [@telemetry]. `loadDistinctId()` looks for `identity.json` under `rudderHome()`, parses the file, and reuses `obj.id` when it is a non-empty string [@telemetry]. If the file is missing, malformed, or unusable, the function generates a UUID with `randomUUID()` [@telemetry].
+Telemetry does not use a user account identity. `identity.json` under `rudderHome()` stores a stable anonymous UUID plus a local-only random pseudonymization key [@telemetry]. The loader preserves an existing non-empty `id`, fills either missing field, and upgrades the older `{ id }` shape by adding `pseudonymization_key` [@telemetry]. Persistence is best-effort, but when supported the Rudder home is restricted to mode `0700` and the identity file to mode `0600` [@telemetry].
 
-Persistence is best-effort. The loader creates the Rudder home directory and writes `{"id": "<uuid>"}` when it can, but write failures fall through and the generated id remains usable in memory for that process [@telemetry]. Because `rudderHome()` itself is controlled by `RUDDER_HOME` or defaults to `~/.rudder`, telemetry identity follows the same state-root override as the database [@db-client] [@telemetry].
+Repository, branch, and run identifiers are not sent raw. `pseudonymize()` uses HMAC-SHA256 over a namespace, a null separator, and the source value with the installation's local key [@telemetry]. Repository pseudonyms are stable only within one installation, branch pseudonyms include the repository and branch, and run pseudonyms include repository, branch, and run ID [@rudder-telemetry]. That keeps events joinable for one installation without making private identifiers readable or correlatable across installations.
 
-## Capture And Shutdown
+Every ordinary event receives `telemetry_schema_version` and the current `rudder_version`; exception events receive those common properties as well [@telemetry]. The version is read from `package.json` at runtime and falls back to `unknown` if the manifest cannot be read [@telemetry].
 
-`capture(event, properties)` sends a PostHog event with the anonymous distinct id, event name, and optional properties only when `client()` returns a client [@telemetry]. `captureException(err, extra)` uses the same distinct id and passes optional extra properties to PostHog's exception capture API [@telemetry]. Both helpers are intentionally small, so product code can report events without knowing the API-key, opt-out, or identity-file rules.
+## Event Boundary
 
-`shutdown()` is the lifecycle close point. It awaits `_client.shutdown()` when a client exists and then clears the cached client reference [@telemetry]. Code that adds longer-running commands should preserve that explicit shutdown path so pending telemetry work is flushed before process exit. The exact environment-variable behavior is listed in [Environment Variables](../../reference/configuration/environment-variables).
+Prompt lifecycle events are emitted directly by `src/prompt-hook.ts`, while Rudder workflow events pass through the strict schemas in `src/rudder-telemetry.ts` [@prompt-hook] [@rudder-telemetry].
+
+| Event | Bounded properties |
+| --- | --- |
+| `rudder prompt captured` | Agent source, whether this is the first captured prompt in the session, the session's captured-prompt count, and whether previous agent output was stored [@prompt-hook]. |
+| `rudder prompt reconciled` | Agent source and whether the repository branch changed across the prompt turn [@prompt-hook]. |
+| `rudder run started` / `rudder context refreshed` | Host, installation-scoped repository/branch/run pseudonyms, local-repository flag, captured and reconciled prompt counts, prompt-source counts, changed-path counts, untracked-path count, and test-line additions/deletions from the merge base [@rudder-telemetry] [@context-script]. |
+| `rudder test backup created` | Run pseudonyms, host, approved test-path count, and copied untracked test-path count [@rudder-telemetry] [@backup-script]. |
+| `rudder question asked` | Run pseudonyms, host, and a positive question ordinal [@rudder-telemetry] [@skill-telemetry]. |
+| `rudder run finished` | Run pseudonyms, host, bounded completion/test/coverage states, final changed-path counts, recognized Rudder source-tag count in changed test paths, test-line additions/deletions, and total questions asked [@rudder-telemetry] [@skill-telemetry]. |
+
+These schemas omit raw prompt and answer text, previous agent output, raw repository, branch, and run identifiers, model and token usage, tool activity, and cost [@prompt-hook] [@rudder-telemetry]. The question helper receives only the run ID and ordinal, and the completion helper derives path, tag, and line counts from Git and the worktree instead of accepting arbitrary analytics properties [@skill-telemetry].
+
+## Dispatch And Failure Boundary
+
+The installed skill does not import PostHog directly. `skills/rudder/scripts/telemetry.mjs` serializes a bounded payload and starts the bundled `dist/rudder-prompt-hook.mjs` with `--rudder-event <event>` as a detached, unreferenced child whose stdio is ignored [@skill-telemetry]. Missing bundles, serialization failures, spawn errors, and an unresponsive telemetry receiver do not block the Rudder workflow [@skill-telemetry]. The context helper emits start or refresh events, the backup helper emits its event after recovery metadata exists, and the telemetry CLI records question ordinals and final run outcomes [@context-script] [@backup-script] [@skill-telemetry].
+
+The bundled hook selects either Rudder-event mode or ordinary prompt-capture mode from its arguments, parses one JSON payload from stdin, and uses the same telemetry shutdown path for both [@hook-bin]. All top-level hook failures are caught; exception capture, database close, and telemetry shutdown are each best-effort so neither prompt capture nor product telemetry interrupts the host coding agent [@hook-bin]. `shutdown()` awaits the cached PostHog client's close and clears the client reference [@telemetry]. The exact environment-variable behavior is listed in [Environment Variables](../../reference/configuration/environment-variables).

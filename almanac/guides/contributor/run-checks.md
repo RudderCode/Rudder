@@ -54,7 +54,7 @@ npm test
 npm run build
 ```
 
-The package manifest defines `typecheck` as `tsc --noEmit`, `test` as `node --test`, and `build` as the esbuild prompt-hook bundle plus `drizzle/` copy [@package]. The CI test workflow uses Node 24, runs `npm ci`, checks agent layout and Markdown formatting, and then runs the same typecheck, test, and build sequence on every pushed branch and on manual dispatch [@test-workflow].
+The package manifest defines `typecheck` as `tsc --noEmit`, `test` as `node --test`, and `build` as the esbuild prompt-hook bundle plus `drizzle/` copy [@package]. The CI test workflow checks out full history, uses Node 24, runs `npm ci`, checks agent layout and Markdown formatting, typechecks, replaces the local `npm test` step with `npm run test:coverage`, and rebuilds on every pushed branch and on manual dispatch [@test-workflow]. That coverage script still runs the full Node suite, then requires at least 90% coverage for changed and untracked source lines through c8 LCOV plus `diff-cover` [@package].
 
 ## Handle PR Comments
 

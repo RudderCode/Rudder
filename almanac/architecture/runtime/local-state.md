@@ -1,6 +1,6 @@
 ---
 title: "Local State"
-summary: "Rudder keeps runtime state in a user-scoped home directory that owns the SQLite database, telemetry identity, update-check cache, backups, and dashboard port defaults."
+summary: "Rudder keeps runtime state in a user-scoped home directory that owns the SQLite database, telemetry identity, update-check cache, backups, and exported port defaults."
 topics: [architecture, runtime, local-state, sqlite, prompt-capture]
 sources:
   - id: db-client
@@ -34,10 +34,10 @@ The source tree does not carry a repo-local state directory convention. The repo
 
 Migration application is deliberately part of the open flow. `openDb()` derives the migration directory from `RUDDER_MIGRATIONS_PATH` when that variable is set, otherwise it resolves the repository `drizzle/` directory relative to `src/db/client.ts`; it closes the raw SQLite handle if migration application fails [@db-client]. That means code using the [Prompt Branch Store](prompt-branch-store) can call `rudderDb()` without running a separate migration command first; `rudderDb()` opens the database if the Drizzle singleton is still missing [@db-client].
 
-## Dashboard Port
+## Port Helper
 
-`rudderPort()` is a small local-state helper for the dashboard daemon. It converts `RUDDER_PORT` with `Number()`, accepts only integer ports greater than zero and less than `65536`, and falls back to `41789` for unset, non-numeric, fractional, zero, negative, or out-of-range values [@db-client]. The exact environment contract is listed in [Environment Variables](../../reference/configuration/environment-variables).
+`rudderPort()` is a small exported local-state helper for a future or host-owned port consumer. It converts `RUDDER_PORT` with `Number()`, accepts only integer ports greater than zero and less than `65536`, and falls back to `41789` for unset, non-numeric, fractional, zero, negative, or out-of-range values [@db-client]. The exact environment contract is listed in [Environment Variables](../../reference/configuration/environment-variables).
 
 ## Shared Boundary
 
-Local state currently covers the SQLite database path, the telemetry identity file, the update-check cache, skill backup directories, and the dashboard port default. Telemetry builds `identity.json` under `rudderHome()`, reads an existing `{ id }` value when present, and writes a generated UUID there on a best-effort basis when it needs a new anonymous installation identity [@telemetry]. The update helper writes `update-state.json` atomically through a temporary file with mode `0600` after creating the Rudder home with mode `0700` [@update-script]. The important invariant is that runtime code should derive persistent paths from `rudderHome()` instead of inventing new repository-local locations. That keeps [Telemetry](telemetry), [Prompt Branch Store](prompt-branch-store), the update helper, and the environment-variable reference aligned around the same state root [@db-client] [@telemetry] [@update-script].
+Local state currently covers the SQLite database path, the telemetry identity file, the update-check cache, skill backup directories, and the exported port default. Telemetry builds `identity.json` under `rudderHome()`, preserves an existing anonymous UUID, and adds a random local-only pseudonymization key when either field is missing [@telemetry]. It creates the state root with mode `0700`, writes the identity file with mode `0600`, reapplies those permissions when an existing complete identity is loaded, and treats all persistence and permission changes as best-effort [@telemetry]. The update helper writes `update-state.json` atomically through a temporary file with mode `0600` after creating the Rudder home with mode `0700` [@update-script]. The important invariant is that runtime code should derive persistent paths from `rudderHome()` instead of inventing new repository-local locations. That keeps [Telemetry](telemetry), [Prompt Branch Store](prompt-branch-store), the update helper, and the environment-variable reference aligned around the same state root [@db-client] [@telemetry] [@update-script].

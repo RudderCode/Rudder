@@ -12,6 +12,9 @@ sources:
   - id: comments-skill
     type: file
     path: .agents/skills/address-pr-comments/SKILL.md
+  - id: release-skill
+    type: file
+    path: .agents/skills/prepare-package-release/SKILL.md
   - id: package
     type: file
     path: package.json
@@ -26,7 +29,7 @@ sources:
     path: dangerfile.ts
 ---
 
-Rudder's contributor automation is a set of local and CI gates for a repository that currently has one root plugin package and centralized agent workflows. `.agents/skills/` is the only reusable-workflow source, with `.claude/skills` and `.codex/skills` as compatibility symlinks [@agents-readme]. The `check-changed-folders` skill compares the branch with `origin/main`, verifies the centralized agent-instruction layout, verifies agent attribution, runs the package checks, and then invokes PR-comment remediation when a PR exists [@check-skill]. GitHub Actions repeats package validation on branch pushes, while the Danger workflow enforces protected paths and inline agent guards for agent-authored pull requests [@test-workflow] [@danger-workflow] [@dangerfile].
+Rudder's contributor automation is a set of local and CI gates for a repository that currently has one root plugin package and centralized agent workflows. `.agents/skills/` is the only reusable-workflow source, with `.claude/skills` and `.codex/skills` as compatibility symlinks [@agents-readme]. The `check-changed-folders` skill validates branches, verifies layout and attribution, runs local package checks, and delegates PR-comment remediation when a PR exists [@check-skill]. The `prepare-package-release` skill synchronizes package and plugin versions, ingests the complete range since the previous release, Gardens the whole CodeAlmanac wiki, and validates the prepared release [@release-skill]. GitHub Actions repeats package validation on branch pushes, while the Danger workflow enforces protected paths and inline agent guards for agent-authored pull requests [@test-workflow] [@danger-workflow] [@dangerfile].
 
 ## Local Check Surface
 
@@ -38,13 +41,19 @@ Before package checks, the local flow also checks that each coding agent represe
 
 ## Package Checks
 
-After layout and attribution checks, the local flow installs dependencies with `npm install` only when `node_modules/` is missing, then runs `npm run typecheck`, `npm test`, and `npm run build` [@check-skill]. The Test workflow uses the CI equivalent plus layout and Markdown checks: checkout, Node 24 setup, `npm ci`, `npm run check:agent-layout`, `npm run format:markdown:check`, `npm run typecheck`, `npm test`, and `npm run build` on Ubuntu [@test-workflow]. The exact command meanings are listed in [Package Scripts](../../reference/tooling/package-scripts), while [GitHub Workflows](../../reference/automation/github-workflows) records CI triggers and permissions.
+After layout and attribution checks, the local flow installs dependencies with `npm install` only when `node_modules/` is missing, then runs `npm run typecheck`, `npm test`, and `npm run build` [@check-skill]. The Test workflow adds the CI coverage boundary: it checks out full history, sets up Node 24, runs `npm ci`, checks agent layout and Markdown, typechecks, runs `npm run test:coverage` with a 90% changed-line threshold, and rebuilds on Ubuntu [@test-workflow] [@package]. The exact command meanings are listed in [Package Scripts](../../reference/tooling/package-scripts), while [GitHub Workflows](../../reference/automation/github-workflows) records CI triggers and permissions.
 
 ## PR Comment Remediation
 
 The check flow delegates open PR feedback to a separate `address-pr-comments` skill [@check-skill]. That skill locates the current branch PR with `gh pr view`, fetches top-level issue comments and inline review comments through GitHub API endpoints, de-duplicates by path, line, author, and body hash, and ignores deploy-bot noise [@comments-skill]. Each remaining comment is verified against the current `HEAD`, then either fixed, declined with a reason, or deferred to the user when it needs a judgment call [@comments-skill].
 
 That remediation flow has its own validation boundary. If it applies any fixes, it reruns `npm run typecheck`, `npm test`, and `npm run build`, but it does not invoke the full check flow again because that would re-enter the PR-comment workflow [@comments-skill]. The [Address PR Comments](../../guides/contributor/address-pr-comments) guide gives the operational procedure without duplicating the architecture here.
+
+## Release Preparation
+
+Release preparation has a dedicated workflow because one package version is repeated across the npm package, lockfile, Codex and Claude plugin manifests, and Claude marketplace metadata [@release-skill]. The skill treats `package.json` as authoritative, uses npm's no-tag version command, copies the exact result into every version-bearing manifest, and leaves tag creation to post-merge release automation [@release-skill].
+
+The workflow finds the previous `rudder-plugin-v*` tag and uses the range from that tag through `HEAD` as Ingest's committed source boundary, alongside staged and unstaged changes [@release-skill]. This includes already-merged work that an `origin/main` branch diff would omit. Garden then reconciles the ingested release knowledge across the whole wiki [@release-skill]. Either job may validly produce no wiki changes when the release contains no durable knowledge. The prepared release is complete only after both the package checks and `codealmanac validate` pass [@release-skill]. The [Prepare Package Release](../../guides/release/prepare-package-release) guide provides the operational sequence.
 
 ## Agent Guards
 

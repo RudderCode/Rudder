@@ -1,6 +1,6 @@
 ---
 title: "Rudder Plugin Package"
-summary: "The root npm package distributes Rudder as one Claude Code and Codex plugin with manifests, hooks, skill files, docs, assets, and a bundled prompt-capture hook."
+summary: "The root npm package distributes Rudder as one Claude Code and Codex plugin with manifests, hooks, skill files, docs, assets, and a bundled prompt-capture and telemetry runtime."
 topics: [architecture, tooling, package, plugin, prompt-capture, release]
 sources:
   - id: package-json
@@ -24,6 +24,12 @@ sources:
   - id: skill
     type: file
     path: skills/rudder/SKILL.md
+  - id: skill-telemetry
+    type: file
+    path: skills/rudder/scripts/telemetry.mjs
+  - id: rudder-telemetry
+    type: file
+    path: src/rudder-telemetry.ts
   - id: plugin-tests
     type: file
     path: test/plugin-package.test.ts
@@ -37,7 +43,7 @@ sources:
 
 # Rudder Plugin Package
 
-The repository root is the publishable Rudder plugin package. `package.json` names the package `@ruddercode/rudder-plugin`, requires Node `>=24.0.0`, and includes plugin-specific artifacts such as `.claude-plugin`, `.codex-plugin`, `assets`, `docs`, `hooks`, `skills`, and `dist` in the npm file allowlist [@package-json]. The package carries both Claude Code and Codex plugin manifests, a public marketplace catalog that points at the npm package, the Rudder skill, and a bundled prompt-capture hook [@claude-manifest] [@codex-manifest] [@marketplace] [@hooks] [@skill].
+The repository root is the publishable Rudder plugin package. `package.json` names the package `@ruddercode/rudder-plugin`, requires Node `>=24.0.0`, and includes plugin-specific artifacts such as `.claude-plugin`, `.codex-plugin`, `assets`, `docs`, `hooks`, `skills`, and `dist` in the npm file allowlist [@package-json]. The package carries both Claude Code and Codex plugin manifests, a public marketplace catalog that points at the npm package, the Rudder skill and helper scripts, and one bundled runtime used for prompt capture and bounded product telemetry [@claude-manifest] [@codex-manifest] [@marketplace] [@hooks] [@skill] [@skill-telemetry] [@rudder-telemetry].
 
 ## Distribution Shape
 
@@ -47,10 +53,12 @@ The marketplace catalog under `.claude-plugin/marketplace.json` lists one plugin
 
 ## Bundled Hook
 
-`hooks/hooks.json` registers command hooks for `UserPromptSubmit` and `Stop` [@hooks]. Each command executes Node with `--input-type=module`, resolves the plugin root from `PLUGIN_ROOT` or `CLAUDE_PLUGIN_ROOT`, and imports `dist/rudder-prompt-hook.mjs` from that root [@hooks]. The source executable reads JSON hook payloads from stdin, infers Codex from `PLUGIN_ROOT`, infers Claude Code from `CLAUDE_PLUGIN_ROOT`, sets `RUDDER_MIGRATIONS_PATH` to the installed `dist/drizzle` folder, records the prompt hook event, catches failures, reports hook exceptions through telemetry best-effort, closes the database handle, and shuts down telemetry without printing model-visible output [@hook-bin].
+`hooks/hooks.json` registers command hooks for `UserPromptSubmit` and `Stop` [@hooks]. Each command executes Node with `--input-type=module`, resolves the plugin root from `PLUGIN_ROOT` or `CLAUDE_PLUGIN_ROOT`, and imports `dist/rudder-prompt-hook.mjs` from that root [@hooks]. In ordinary hook mode, the source executable reads JSON from stdin, infers Codex from `PLUGIN_ROOT` or Claude Code from `CLAUDE_PLUGIN_ROOT`, sets `RUDDER_MIGRATIONS_PATH` to the installed `dist/drizzle` folder, and records the prompt lifecycle event [@hook-bin].
 
-The `build` script creates the installed hook artifact by bundling `bin/rudder-prompt-hook.ts` with esbuild for Node ESM output at `dist/rudder-prompt-hook.mjs`, then copying committed Drizzle migrations into `dist/drizzle` [@package-json]. `pretest` and `prepack` both run the build, so tests and packed artifacts use a freshly generated bundle [@package-json]. Plugin package tests enforce matching Claude/Codex metadata, required package file entries, marketplace npm source fields, hook command shape, and silent prompt-hook execution for both `PLUGIN_ROOT` and `CLAUDE_PLUGIN_ROOT` environments [@plugin-tests].
+The same executable has an internal `--rudder-event` mode for the five validated events in `src/rudder-telemetry.ts` [@hook-bin] [@rudder-telemetry]. `skills/rudder/scripts/telemetry.mjs` launches that bundled artifact as a detached best-effort child for run, context, backup, question, and completion metadata without exposing PostHog to the skill process [@skill-telemetry]. Both modes catch top-level failures, report exceptions best-effort, close any database handle, shut down telemetry, and avoid model-visible output [@hook-bin].
+
+The `build` script creates the installed runtime artifact by bundling `bin/rudder-prompt-hook.ts` with esbuild for Node ESM output at `dist/rudder-prompt-hook.mjs`, then copying committed Drizzle migrations into `dist/drizzle` [@package-json]. `pretest`, `test:coverage`, and `prepack` build before their downstream work, so tests, coverage, and packed artifacts use a fresh bundle [@package-json]. Plugin package tests enforce matching Claude/Codex metadata, required package file entries including the skill telemetry helper, marketplace npm source fields, hook command shape, and silent prompt-hook execution for both `PLUGIN_ROOT` and `CLAUDE_PLUGIN_ROOT` environments [@plugin-tests].
 
 ## Release Boundary
 
-The publish workflow expects the root package name to be exactly `@ruddercode/rudder-plugin`, checks npmjs.org for the version, creates plugin tags in the `rudder-plugin-v<version>` form, and validates the package with agent layout, typecheck, tests, build, and `npm pack --dry-run` before publishing [@publish-workflow]. The release behavior is covered in [Release Automation](../release/release-automation), and the command surface is listed in [Package Scripts](../../reference/tooling/package-scripts).
+The publish workflow expects the root package name to be exactly `@ruddercode/rudder-plugin`, checks npmjs.org for the version, creates plugin tags in the `rudder-plugin-v<version>` form, and validates the package with agent layout, typecheck, 90% changed-line coverage, build, and `npm pack --dry-run` before publishing [@publish-workflow] [@package-json]. The release behavior is covered in [Release Automation](../release/release-automation), and the command surface is listed in [Package Scripts](../../reference/tooling/package-scripts).

@@ -18,6 +18,9 @@ sources:
   - id: release-alert
     type: file
     path: .github/workflows/release-alert.yml
+  - id: package
+    type: file
+    path: package.json
 ---
 
 # GitHub Workflows Reference
@@ -33,7 +36,7 @@ This reference covers the four GitHub Actions workflows in Rudder: package valid
 
 ## Test
 
-The Test workflow runs one `test` job on `ubuntu-latest` [@test-workflow]. The job checks out the repository, sets up Node 24, installs dependencies with `npm ci`, then runs `npm run check:agent-layout`, `npm run format:markdown:check`, `npm run typecheck`, `npm test`, and `npm run build` [@test-workflow]. These commands are the CI version of the package and documentation checks listed in [Package Scripts](../tooling/package-scripts).
+The Test workflow runs one `test` job on `ubuntu-latest` [@test-workflow]. The job checks out full repository history with `fetch-depth: 0`, sets up Node 24, installs dependencies with `npm ci`, then runs `npm run check:agent-layout`, `npm run format:markdown:check`, `npm run typecheck`, `npm run test:coverage`, and `npm run build` [@test-workflow]. The coverage command runs the full Node suite under c8 and uses `diff-cover` to require 90% coverage for changed and untracked lines, so Git history is part of the CI input [@package] [@test-workflow]. These commands are the CI version of the package and documentation checks listed in [Package Scripts](../tooling/package-scripts).
 
 ## Enforce Agent Guards
 
@@ -45,7 +48,7 @@ The Danger workflow runs one `danger` job on pull requests targeting `main` [@da
 
 The publish workflow serializes runs with concurrency group `publish-rudder-plugin` and does not cancel an in-progress publish [@publish-workflow]. The job checks out full history, reads `package.json` for `name` and `version`, derives `tag=rudder-plugin-v<version>`, and fails if the package name is not exactly `@ruddercode/rudder-plugin` [@publish-workflow].
 
-The first step sets artifact flags. It checks npmjs.org with `npm view`, checks the plugin tag with `git rev-parse`, and checks the GitHub Release through `gh api repos/${GITHUB_REPOSITORY}/releases/tags/${tag}` [@publish-workflow]. When any artifact is missing, the workflow sets up Node 24, installs the latest npm for Trusted Publishers support, runs `npm ci`, writes release telemetry defaults from `POSTHOG_PROJECT_TOKEN` and `POSTHOG_HOST`, validates the plugin package with `DO_NOT_TRACK=1`, publishes to npmjs.org when needed, pushes the tag when needed, and creates the GitHub Release titled `Rudder v<version>` with generated notes when missing [@publish-workflow].
+The first step sets artifact flags. It checks npmjs.org with `npm view`, checks the plugin tag with `git rev-parse`, and checks the GitHub Release through `gh api repos/${GITHUB_REPOSITORY}/releases/tags/${tag}` [@publish-workflow]. When any artifact is missing, the workflow sets up Node 24, installs the latest npm for Trusted Publishers support, runs `npm ci`, writes release telemetry defaults from `POSTHOG_PROJECT_TOKEN` and `POSTHOG_HOST`, validates agent layout, typechecking, 90% changed-line coverage, build output, and package contents with `DO_NOT_TRACK=1`, publishes to npmjs.org when needed, pushes the tag when needed, and creates the GitHub Release titled `Rudder v<version>` with generated notes when missing [@publish-workflow].
 
 ## Plugin Release Alert
 
