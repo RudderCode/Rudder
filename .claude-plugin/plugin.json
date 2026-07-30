@@ -17,5 +17,6 @@
     "coverage"
   ],
   "skills": "./skills/",
+  "mcpServers": "./.claude-mcp.json",
   "hooks": "./hooks/hooks.json"
 }
