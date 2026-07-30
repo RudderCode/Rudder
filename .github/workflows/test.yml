@@ -25,5 +25,5 @@ jobs:
       - run: npm run check:agent-layout
       - run: npm run format:markdown:check
       - run: npm run typecheck
-      - run: npm test
+      - run: npm run test:coverage
       - run: npm run build

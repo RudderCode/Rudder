@@ -121,7 +121,7 @@ jobs:
         run: |
           npm run check:agent-layout
           npm run typecheck
-          npm test
+          npm run test:coverage
           npm run build
           npm pack --dry-run
 
