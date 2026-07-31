@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, before, test } from 'node:test';
@@ -64,7 +71,6 @@ test('ships matching Codex and Claude plugin metadata', () => {
   assert.equal(claude.mcpServers, './.claude-mcp.json');
   assert.equal(codex.mcpServers, './.mcp.json');
   assert.ok(codex.interface.capabilities.includes('Interactive'));
-  assert.equal(claude.hooks, './hooks/hooks.json');
   assert.ok(codex.interface.shortDescription.length <= 30);
   assert.match(codex.interface.privacyPolicyURL, /^https:\/\//);
   assert.match(codex.interface.termsOfServiceURL, /^https:\/\//);
@@ -266,6 +272,23 @@ test('keeps the release PostHog host explicit', () => {
     telemetrySource,
     /const DEFAULT_POSTHOG_HOST = 'https:\/\/us\.i\.posthog\.com';/
   );
+});
+
+test('leaves plugin hooks at the path both hosts discover on their own', () => {
+  const claude = JSON.parse(
+    readFileSync(join(pluginRoot, '.claude-plugin', 'plugin.json'), 'utf8')
+  );
+  const codex = JSON.parse(
+    readFileSync(join(pluginRoot, '.codex-plugin', 'plugin.json'), 'utf8')
+  );
+
+  // Claude Code and Codex both load hooks/hooks.json from the plugin root without being
+  // told to. A manifest that names that same path registers the file a second time:
+  // Claude Code 2.0.60 and later fail the plugin with a duplicate hooks error, and earlier
+  // releases run every hook twice. Only non-default hook files belong in `hooks`.
+  assert.ok(existsSync(join(pluginRoot, 'hooks', 'hooks.json')));
+  assert.equal(claude.hooks, undefined);
+  assert.equal(codex.hooks, undefined);
 });
 
 test('registers prompt submission and stop hooks from the plugin root', () => {

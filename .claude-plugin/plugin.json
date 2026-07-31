@@ -1,6 +1,6 @@
 {
   "name": "rudder",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Generate focused unit tests from coding-session intent and worktree changes using your existing coding agent.",
   "author": {
     "name": "Vivek Yanamadula",
@@ -17,6 +17,5 @@
     "coverage"
   ],
   "skills": "./skills/",
-  "mcpServers": "./.claude-mcp.json",
-  "hooks": "./hooks/hooks.json"
+  "mcpServers": "./.claude-mcp.json"
 }
