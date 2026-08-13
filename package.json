@@ -7,8 +7,6 @@
     "node": ">=24.0.0"
   },
   "files": [
-    ".mcp.json",
-    ".claude-mcp.json",
     ".claude-plugin",
     ".codex-plugin",
     "assets",
@@ -47,7 +45,7 @@
     "danger:ci": "danger ci --failOnErrors",
     "check:agent-layout": "test -L .claude/skills && test -L .codex/skills && test .claude/skills -ef .agents/skills && test .codex/skills -ef .agents/skills && test ! -e .claude/commands && grep -Fxq '@AGENTS.md' CLAUDE.md",
     "typecheck": "tsc --noEmit",
-    "build": "rm -rf dist && esbuild bin/rudder-prompt-hook.ts --bundle --platform=node --format=esm --target=node24 --outfile=dist/rudder-prompt-hook.mjs && esbuild bin/rudder-mcp-server.ts --bundle --platform=node --format=esm --target=node24 --outfile=dist/rudder-mcp-server.mjs && node scripts/build-mcp-app.mjs && cp -R drizzle dist/drizzle",
+    "build": "rm -rf dist && esbuild bin/rudder-prompt-hook.ts --bundle --platform=node --format=esm --target=node24 --outfile=dist/rudder-prompt-hook.mjs && cp -R drizzle dist/drizzle",
     "pretest": "npm run build",
     "test": "node --test",
     "test:coverage": "npm run build && c8 node --test && diff-cover coverage/lcov.info --fail-under=90 --show-uncovered --include-untracked",
@@ -59,8 +57,7 @@
     "include": [
       "bin/**/*.ts",
       "skills/**/*.mjs",
-      "src/**/*.ts",
-      "ui/**/*.ts"
+      "src/**/*.ts"
     ],
     "exclude": [
       "dist/**",
@@ -71,8 +68,6 @@
     ]
   },
   "devDependencies": {
-    "@modelcontextprotocol/ext-apps": "^1.7.5",
-    "@modelcontextprotocol/sdk": "^1.30.0",
     "@types/node": "^24",
     "c8": "^12.0.0",
     "danger": "^13.0.10",
@@ -82,8 +77,7 @@
     "esbuild": "^0.25.12",
     "posthog-node": "^5.41.0",
     "rumdl": "0.2.41",
-    "typescript": "^5.7.0",
-    "zod": "^4.4.3"
+    "typescript": "^5.7.0"
   },
   "overrides": {
     "danger": {
