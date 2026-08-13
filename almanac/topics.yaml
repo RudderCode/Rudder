@@ -43,10 +43,6 @@ topics:
     title: Local State
     description: User-scoped runtime state such as the Rudder home directory, SQLite database, and telemetry identity.
     parents: [runtime]
-  - slug: mcp-app
-    title: MCP App
-    description: MCP server, app resource, UI launcher, and host manifest configuration for Rudder's interactive UI.
-    parents: [plugin, runtime]
   - slug: package
     title: Package
     description: npm package metadata, exports, scripts, publishing, and build outputs.
