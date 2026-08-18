@@ -285,10 +285,13 @@ test('the skill helper returns intent, run identity, and initial test lines', ()
   assert.equal(context.branch, 'main');
   assert.equal(context.schemaVersion, 2);
   assert.match(context.rudderRunId, /^[a-f0-9-]{36}$/);
-  assert.equal(context.testLineAdditionCount, 1);
+  assert.equal(context.testLineAdditionCount, 2);
   assert.equal(context.testLineDeletionCount, 0);
   rudderRunId = context.rudderRunId;
-  assert.deepEqual(context.testPaths, ['test/feature.test.ts']);
+  assert.deepEqual(context.testPaths, [
+    'specs/feature.spec.md',
+    'test/feature.test.ts',
+  ]);
   assert.deepEqual(context.specCandidatePaths, ['specs/feature.spec.md']);
   assert.ok(context.productionCandidatePaths.includes('src/feature.ts'));
   assert.equal(context.localSpec, null);
@@ -735,10 +738,10 @@ test('the skill reports final test lines and total Rudder questions', () => {
     testsPassed: 'yes',
     coverageTargetMet: 'no',
     changedPathCount: 4,
-    changedTestPathCount: 1,
-    changedProductionPathCount: 3,
+    changedTestPathCount: 2,
+    changedProductionPathCount: 2,
     specBackedTestCount: 1,
-    finalTestLineAdditionCount: 2,
+    finalTestLineAdditionCount: 3,
     finalTestLineDeletionCount: 0,
     questionsAskedCount: 1,
   });

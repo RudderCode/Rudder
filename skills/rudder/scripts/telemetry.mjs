@@ -87,7 +87,6 @@ export function isSpecCandidatePath(path) {
 export function isTestPath(path) {
   const normalized = path.replaceAll('\\', '/');
   const file = basename(normalized);
-  if (isSpecCandidatePath(normalized)) return false;
   return (
     /(^|\/)(__tests__|tests?|specs?|testdata|fixtures?)(\/|$)/iu.test(
       normalized

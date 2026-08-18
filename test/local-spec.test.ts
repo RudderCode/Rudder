@@ -144,12 +144,14 @@ test('imports and refreshes a repository spec without modifying its source', asy
     migrateState(stateRoot);
     mkdirSync(join(repo, 'specs'));
     mkdirSync(join(repo, 'src'));
+    mkdirSync(join(repo, 'test', 'fixtures'), { recursive: true });
     mkdirSync(join(repo, 'openapi'));
     mkdirSync(join(repo, 'api'));
     const sourcePath = join(repo, 'specs', 'feature.spec.md');
     writeFileSync(sourcePath, '# Imported spec\n');
     writeFileSync(join(repo, 'specs', 'feature.spec.ts'), 'test("feature", () => {});\n');
     writeFileSync(join(repo, 'src', 'feature.ts'), 'export const feature = true;\n');
+    writeFileSync(join(repo, 'test', 'fixtures', 'expected.md'), '# Expected fixture\n');
     writeFileSync(join(repo, 'openapi', 'feature.yaml'), 'openapi: 3.1.0\n');
     writeFileSync(join(repo, 'openapi.yaml'), 'openapi: 3.1.0\n');
     writeFileSync(join(repo, 'api', 'openapi.yaml'), 'openapi: 3.1.0\n');
@@ -244,14 +246,18 @@ test('imports and refreshes a repository spec without modifying its source', asy
       'openapi.yaml',
       'openapi/feature.yaml',
       'specs/feature.spec.md',
+      'test/fixtures/expected.md',
     ]);
-    assert.deepEqual(context.testPaths, ['specs/feature.spec.ts']);
+    assert.deepEqual(context.testPaths, [
+      'specs/feature.spec.md',
+      'specs/feature.spec.ts',
+      'test/fixtures/expected.md',
+    ]);
     assert.deepEqual(context.productionCandidatePaths, [
       'api/openapi.yaml',
       'asyncapi.yml',
       'openapi.yaml',
       'openapi/feature.yaml',
-      'specs/feature.spec.md',
       'src/feature.ts',
     ]);
 
