@@ -5,7 +5,7 @@
 # Rudder 🫧
 
 <div align="center">
-  <p><strong>Make your specs actually comprehensive.</strong></p>
+  <p><strong>Effortless, actually comprehensive specs.</strong></p>
   <p>
     <a href="https://github.com/RudderCode/Rudder/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/RudderCode/Rudder?logo=github"></a>
     <a href="https://www.npmjs.com/package/@ruddercode/rudder-plugin"><img alt="npm downloads" src="https://img.shields.io/npm/dm/%40ruddercode%2Frudder-plugin?logo=npm"></a>
@@ -16,22 +16,28 @@
 </div>
 
 Rudder is a local plugin for Claude Code and Codex that makes verifiably comprehensive specs from
-your existing specs and your session history. Rudder uses specs to generate unit tests, turning test
-coverage into a proxy for how comprehensive your specs really are.
+your session history and any existing specs. Rudder then uses specs to generate unit tests, turning
+test coverage into a proxy for how comprehensive your specs really are.
 
-<strong>Why use it:</strong> Coding agents are now generating mass amounts of code, but with very
-little oversight into whether that code actually reflects the intent of the developer. Even with
-diligent Spec-Driven Development methods, agents will often improvise implementation if the spec isn't
-comprehensive enough. Rudder solves this by using the age-old method of checking if code does what
-its supposed to do--unit testing.
+<strong>Why use it:</strong> 
+
+> "I want my agents to stop guessing when coding, but I don't want to have to pre-write super long specs"
+
+Rudder solves this by retrospectively writing specs for you based on your prompt history, then asking you
+questions until the spec is comprehensive enough to stop any guesswork.
+
+> "I love Spec-Driven Development, but I'm worried my specs aren't comprehensive enough"
+
+Rudder starts with the spec you give it, generates a coverage percentage showing how well your spec covers
+your agent's code, and then asks you questions to improve your spec until its sufficiently comprehensive.
 
 <strong>How it works:</strong> 
 1. Rudder installs hooks in your coding agents to record the repository and branch that your agents
 are working in. When invoked at the end of a session, Rudder uses your prompt history and any existing
 specs it finds in your branch to generate its own maximally comprehensive spec.
-3. Rudder instructs your agent to rewrite unit tests with the requirement that each test is tied
+2. Rudder instructs your agent to rewrite unit tests with the requirement that each test is tied
 directly to a requirement in the spec document.
-4. Rudder asks you targeted questions about the change you want to make until your spec covers the
+3. Rudder asks you targeted questions about the change you want to make until your spec covers the
 code your agent has written. When you pass test coverage, you know your spec is actually comprehensive.
 
 Rudder uses the repository's own test and coverage tools, and test generation stays with the coding agent and model
