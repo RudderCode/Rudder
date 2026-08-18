@@ -1,7 +1,7 @@
 ---
 title: "Generated Drizzle Migrations"
-summary: "Rudder uses committed Drizzle migrations as the runtime database creation path, so plugin builds must ship the migration files with the bundled hook."
-topics: [database, runtime, decisions, sqlite, prompt-capture, plugin]
+summary: "Rudder uses committed Drizzle migrations as the runtime database creation path for prompt and local-spec persistence, so plugin builds must ship the migration files with the bundled hook."
+topics: [database, runtime, decisions, sqlite, prompt-capture, local-spec, plugin]
 sources:
   - id: db-client
     type: file
@@ -18,6 +18,9 @@ sources:
   - id: previous-output-migration
     type: file
     path: drizzle/20260723191552_capture-previous-agent-output/migration.sql
+  - id: specs-migration
+    type: file
+    path: drizzle/20260818210137_add-local-specs/migration.sql
   - id: drizzle-config
     type: file
     path: drizzle.config.ts
@@ -32,16 +35,17 @@ sources:
 # Generated Drizzle Migrations
 
 Rudder's database schema decision is that generated Drizzle migrations are part of runtime startup. `openDb()` creates the local SQLite database, wraps it with Drizzle, and calls the Drizzle migrator against the configured migrations folder before exposing the cached database handles [@db-client]. The current migration sequence creates `prompt_branches` after the initial session-branch migration, drops the older `session_branches` table, and then adds nullable `previous_agent_output`, while the plugin build copies `drizzle/` into `dist/drizzle` so the installed prompt hook can run the same migrations [@initial-migration] [@prompt-migration] [@previous-output-migration] [@package-json].
+It now also creates `specs`, the branch-to-local-spec mapping used by the approved device-local spec workflow [@schema] [@specs-migration].
 
 ## Status
 
-Accepted for the current prompt-capture database. The active schema surface is split by role: `src/db/schema.ts` declares `prompt_branches`, `drizzle.config.ts` tells Drizzle Kit to generate SQLite migrations into `./drizzle`, the generated SQL creates and extends the live prompt table, and `openDb()` applies those migrations during runtime database initialization [@schema] [@drizzle-config] [@prompt-migration] [@previous-output-migration] [@db-client].
+Accepted for the current prompt-capture and local-spec database. The active schema surface is split by role: `src/db/schema.ts` declares `prompt_branches` and `specs`, `drizzle.config.ts` tells Drizzle Kit to generate SQLite migrations into `./drizzle`, the generated SQL creates and extends the live tables, and `openDb()` applies those migrations during runtime database initialization [@schema] [@drizzle-config] [@prompt-migration] [@previous-output-migration] [@specs-migration] [@db-client].
 
 ## Context
 
 The runtime database must be usable as soon as a local process asks for it, but schema creation also needs to survive plugin packaging. `openDb()` reads `RUDDER_MIGRATIONS_PATH` when it is set and otherwise falls back to the repository `drizzle/` directory relative to `src/db/client.ts` [@db-client]. `package.json` therefore makes `build` bundle `bin/rudder-prompt-hook.ts` into `dist/rudder-prompt-hook.mjs` and copy `drizzle/` into `dist/drizzle` after clearing `dist` [@package-json].
 
-The prompt migration creates `prompt_branches`, adds repository/branch and session indexes, and drops `session_branches` [@prompt-migration]. The next migration adds nullable `previous_agent_output` to that table [@previous-output-migration]. `test/migrations.test.ts` verifies runtime behavior instead of only checking the schema declaration: it opens a new database through `openDb()`, confirms `prompt_branches` is present, confirms `session_branches` is absent, confirms `previous_agent_output` is nullable, and confirms Drizzle recorded three migration rows [@migration-tests].
+The prompt migration creates `prompt_branches`, adds repository/branch and session indexes, and drops `session_branches` [@prompt-migration]. The next migration adds nullable `previous_agent_output` to that table, and the specs migration creates the `specs` table with a `(repository, branch)` primary key [@previous-output-migration] [@specs-migration]. `test/migrations.test.ts` verifies runtime behavior instead of only checking the schema declaration: it opens a new database through `openDb()`, confirms the live tables are `prompt_branches` and `specs`, confirms `session_branches` is absent, confirms `previous_agent_output` is nullable, verifies the `specs` columns and key positions, checks duplicate spec mappings fail, and confirms Drizzle recorded four migration rows [@migration-tests].
 
 ## Decision
 
@@ -49,6 +53,7 @@ Rudder will create runtime database schema from committed Drizzle migrations. Ma
 
 ## Consequences
 
-Schema changes now have one runtime creation path. The live database is not created by hand-written `CREATE TABLE IF NOT EXISTS` SQL in `src/db/client.ts`; it is created by the generated migration files that Drizzle's migrator applies [@db-client] [@prompt-migration]. This removes schema duplication between embedded bootstrap SQL and Drizzle declarations, but it makes missing migration files a runtime packaging failure rather than a developer-only generation mistake.
+Schema changes now have one runtime creation path. The live database is not created by hand-written `CREATE TABLE IF NOT EXISTS` SQL in `src/db/client.ts`; it is created by the generated migration files that Drizzle's migrator applies [@db-client] [@prompt-migration] [@specs-migration]. This removes schema duplication between embedded bootstrap SQL and Drizzle declarations, but it makes missing migration files a runtime packaging failure rather than a developer-only generation mistake.
 
 The plugin build is part of the database decision. Removing `cp -R drizzle dist/drizzle` would leave installed hook code without the migration folder assigned to `RUDDER_MIGRATIONS_PATH` [@db-client] [@package-json]. Future database work should update [Prompt Branches Schema](../../reference/database/prompt-branches-schema), the migration tests, and any runtime guide that depends on the table.
+Changes to the `specs` table should also update [Specs Schema](../../reference/database/specs-schema) and [Local Spec Store](../../architecture/runtime/local-spec-store), because the table is the persisted branch mapping for the approved local spec workflow [@schema] [@specs-migration].

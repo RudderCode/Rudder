@@ -31,6 +31,7 @@ sources:
 The `specs` table is Rudder's SQLite mapping from an active repository branch to its approved device-local spec file.
 Drizzle declares the table in `src/db/schema.ts`, the `20260818210137_add-local-specs` migration creates it, `context.mjs` reads it into the skill context, and `local-spec.mjs` creates or refreshes the corresponding file outside the repository [@schema] [@specs-migration] [@context-script] [@local-spec-script].
 This reference is the exact lookup companion to [Local Spec Store](../../architecture/runtime/local-spec-store) and [Prompt Branches Schema](prompt-branches-schema).
+The migration policy that keeps this table available to installed plugin hooks is recorded in [Generated Drizzle Migrations](../../decisions/database/generated-drizzle-migrations).
 
 ## Runtime Creation
 

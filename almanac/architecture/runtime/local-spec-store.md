@@ -9,9 +9,15 @@ sources:
   - id: context-script
     type: file
     path: skills/rudder/scripts/context.mjs
+  - id: telemetry-script
+    type: file
+    path: skills/rudder/scripts/telemetry.mjs
   - id: local-spec-script
     type: file
     path: skills/rudder/scripts/local-spec.mjs
+  - id: data-script
+    type: file
+    path: skills/rudder/scripts/manage-data.mjs
   - id: spec-template
     type: file
     path: skills/rudder/references/spec-template.md
@@ -27,6 +33,9 @@ sources:
   - id: migrations-test
     type: file
     path: test/migrations.test.ts
+  - id: skill-tests
+    type: file
+    path: test/skill-runtime.test.ts
 ---
 
 # Local Spec Store
@@ -46,6 +55,8 @@ The exact table contract is listed in [Specs Schema](../../reference/database/sp
 `scripts/context.mjs` is the read side.
 It opens `<RUDDER_HOME or ~/.rudder>/rudder.db` read-only when the database exists, returns `localSpec` only when the `specs` table exists, and otherwise returns `localSpec: null` while still producing context JSON [@context-script].
 The same context output has `schemaVersion: 2`, branch prompts, changed paths, test paths, production candidate paths, and `specCandidatePaths`, so the skill can resolve the spec before it resets or generates tests [@context-script] [@local-spec-tests].
+Spec candidates are broad for Markdown-like specs and narrow for API schema files: `.feature`, `.md`, and `.mdx` paths qualify directly, while JSON and YAML paths qualify only when the file is named `openapi` or `asyncapi`, or when it is under an `openapi/` or `asyncapi/` path [@telemetry-script].
+Candidate classification is independent from test and production classification, so a fixture Markdown file can appear in both `specCandidatePaths` and `testPaths`, while OpenAPI and AsyncAPI files can remain production candidates [@context-script] [@telemetry-script] [@local-spec-tests].
 
 ## Creating The Local Copy
 
@@ -65,6 +76,12 @@ Keep and merge must not write to the repository source; replacement runs `local-
 `replace-source` is intentionally narrow.
 It fails when there is no local spec for the branch, when the local spec was generated without a repository source, when the stored absolute path is missing, and when the stored path is not valid local Rudder state outside the repository [@local-spec-script] [@local-spec-tests].
 If replacement fails after staging the new content, the helper rolls back the database transaction and restores the original local file from a temporary copy [@local-spec-script].
+
+## Data-Control Boundary
+
+Prompt data controls do not manage local specs.
+`manage-data.mjs status` reports `rudderHome`, `databasePath`, and `promptCount` only, while `delete --confirm` deletes rows from `prompt_branches` without exposing `specCount`, deleting `specs` rows, or removing files under `<rudderHome()>/specs/` [@data-script] [@skill-tests].
+This preserves approved branch specs across prompt-history deletion, while repository source specs remain read-only files outside Rudder's data-control command [@skill] [@local-spec-script].
 
 ## Spec Shape And Test Tags
 

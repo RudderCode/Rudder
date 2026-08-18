@@ -24,6 +24,9 @@ sources:
   - id: skill-telemetry
     type: file
     path: skills/rudder/scripts/telemetry.mjs
+  - id: telemetry-tests
+    type: file
+    path: test/rudder-telemetry.test.ts
   - id: context-script
     type: file
     path: skills/rudder/scripts/context.mjs
@@ -84,7 +87,9 @@ Prompt lifecycle events are emitted directly by `src/prompt-hook.ts`, while Rudd
 | `rudder run finished` | Run pseudonyms, host, bounded completion/test/coverage states, final changed-path counts, recognized `rudder-spec` tag count in changed test paths, test-line additions/deletions, and total questions asked [@rudder-telemetry] [@skill-telemetry]. |
 
 These schemas omit raw prompt and answer text, previous agent output, raw repository, branch, and run identifiers, model and token usage, tool activity, and cost [@prompt-hook] [@rudder-telemetry].
+Telemetry tests assert that `rudder spec created` drops spec origin, source path, local spec path, and spec contents, and that `rudder run finished` exposes `spec_backed_test_count` and question count without raw repository, branch, or run identifiers [@telemetry-tests].
 The question helper receives only the run ID and ordinal, and the completion helper derives path, tag, and line counts from Git and the worktree instead of accepting arbitrary analytics properties [@skill-telemetry].
+The completion helper counts only standalone tag comments whose body is `rudder-spec: REQ-NNN` or `rudder-spec: EC-NNN` using `//`, `#`, `--`, `;`, or block-comment delimiters; deleted, binary, and unreadable changed test paths contribute zero tags [@skill-telemetry].
 
 ## Dispatch And Failure Boundary
 

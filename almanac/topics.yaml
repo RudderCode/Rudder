@@ -57,11 +57,11 @@ topics:
     parents: [package, product-intent]
   - slug: product-intent
     title: Product Intent
-    description: Rudder's prompt-backed product workflow, implemented constraints, and user-intent model.
+    description: Rudder's prompt-and-spec-backed product workflow, implemented constraints, and user-intent model.
     parents: [concepts]
   - slug: prompt-capture
     title: Prompt Capture
-    description: Local prompt text capture, prompt-to-branch reconciliation, data controls, and prompt-backed skill context.
+    description: Local prompt text capture, prompt-to-branch reconciliation, data controls, and prompt provenance for local specs.
     parents: [runtime, database, product-intent]
   - slug: prompt-history
     title: Prompt History
@@ -89,7 +89,7 @@ topics:
     parents: [architecture]
   - slug: sqlite
     title: SQLite
-    description: SQLite database use, generated migrations, and prompt capture persistence.
+    description: SQLite database use, generated migrations, prompt capture persistence, and local spec persistence.
     parents: [database]
   - slug: telemetry
     title: Telemetry
