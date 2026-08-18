@@ -1,0 +1,210 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "id": "06e92f8a-8bd9-41f6-8373-4f26d26c0a5a",
+  "prevIds": [
+    "6a6914e1-a3f5-43f2-ac69-bcbcb7fb44e6"
+  ],
+  "ddl": [
+    {
+      "name": "prompt_branches",
+      "entityType": "tables"
+    },
+    {
+      "name": "specs",
+      "entityType": "tables"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "source",
+      "entityType": "columns",
+      "table": "prompt_branches"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "session_id",
+      "entityType": "columns",
+      "table": "prompt_branches"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "prompt_id",
+      "entityType": "columns",
+      "table": "prompt_branches"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "prompt_text",
+      "entityType": "columns",
+      "table": "prompt_branches"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "previous_agent_output",
+      "entityType": "columns",
+      "table": "prompt_branches"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "repository",
+      "entityType": "columns",
+      "table": "prompt_branches"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "branch",
+      "entityType": "columns",
+      "table": "prompt_branches"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "submitted_at",
+      "entityType": "columns",
+      "table": "prompt_branches"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "reconciled_at",
+      "entityType": "columns",
+      "table": "prompt_branches"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "repository",
+      "entityType": "columns",
+      "table": "specs"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "branch",
+      "entityType": "columns",
+      "table": "specs"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "spec_path",
+      "entityType": "columns",
+      "table": "specs"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "source_relative_path",
+      "entityType": "columns",
+      "table": "specs"
+    },
+    {
+      "columns": [
+        "source",
+        "session_id",
+        "prompt_id"
+      ],
+      "nameExplicit": false,
+      "name": "prompt_branches_pk",
+      "entityType": "pks",
+      "table": "prompt_branches"
+    },
+    {
+      "columns": [
+        "repository",
+        "branch"
+      ],
+      "nameExplicit": false,
+      "name": "specs_pk",
+      "entityType": "pks",
+      "table": "specs"
+    },
+    {
+      "columns": [
+        {
+          "value": "repository",
+          "isExpression": false
+        },
+        {
+          "value": "branch",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "idx_prompt_branches_repository_branch",
+      "entityType": "indexes",
+      "table": "prompt_branches"
+    },
+    {
+      "columns": [
+        {
+          "value": "source",
+          "isExpression": false
+        },
+        {
+          "value": "session_id",
+          "isExpression": false
+        },
+        {
+          "value": "submitted_at",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "idx_prompt_branches_session",
+      "entityType": "indexes",
+      "table": "prompt_branches"
+    }
+  ],
+  "renames": []
+}

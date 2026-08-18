@@ -15,7 +15,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, before, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { closeDb } from '../src/db/client.ts';
+import { closeDb, openDb } from '../src/db/client.ts';
 import { recordPromptHookEvent } from '../src/prompt-hook.ts';
 import { captureRudderTelemetry } from '../skills/rudder/scripts/telemetry.mjs';
 import {
@@ -193,7 +193,7 @@ test('data controls do not permit disabling prompt capture', () => {
   assert.match(disabled.stderr, /status\|delete/);
 });
 
-// codex/019fb36f-4dfe-7c91-8674-5caaf68fcced/019fb39d-12e9-7673-b7d7-04d6c3f27243
+// rudder-spec: REQ-005
 test('the skill helper returns intent, run identity, and initial test lines', () => {
   const originalCaptureDisabled = process.env.RUDDER_DISABLE_PROMPT_CAPTURE;
   const transcriptPath = join(root, 'skill-context.jsonl');
@@ -240,8 +240,10 @@ test('the skill helper returns intent, run identity, and initial test lines', ()
   }
   mkdirSync(join(repo, 'src'));
   mkdirSync(join(repo, 'test'));
+  mkdirSync(join(repo, 'specs'));
   writeFileSync(join(repo, 'src', 'feature.ts'), 'export const feature = true;\n');
   writeFileSync(join(repo, 'test', 'feature.test.ts'), '/* pending */\n');
+  writeFileSync(join(repo, 'specs', 'feature.spec.md'), '# Feature spec\n');
 
   closeDb();
   const context = JSON.parse(
@@ -263,10 +265,13 @@ test('the skill helper returns intent, run identity, and initial test lines', ()
     )
   ) as {
     branch: string;
+    localSpec: null;
+    productionCandidatePaths: string[];
     rudderRunId: string;
+    schemaVersion: number;
+    specCandidatePaths: string[];
     testLineAdditionCount: number;
     testLineDeletionCount: number;
-    otherPaths: string[];
     testPaths: string[];
     prompts: Array<{
       source: string;
@@ -278,12 +283,15 @@ test('the skill helper returns intent, run identity, and initial test lines', ()
   };
 
   assert.equal(context.branch, 'main');
+  assert.equal(context.schemaVersion, 2);
   assert.match(context.rudderRunId, /^[a-f0-9-]{36}$/);
   assert.equal(context.testLineAdditionCount, 1);
   assert.equal(context.testLineDeletionCount, 0);
   rudderRunId = context.rudderRunId;
   assert.deepEqual(context.testPaths, ['test/feature.test.ts']);
-  assert.ok(context.otherPaths.includes('src/feature.ts'));
+  assert.deepEqual(context.specCandidatePaths, ['specs/feature.spec.md']);
+  assert.ok(context.productionCandidatePaths.includes('src/feature.ts'));
+  assert.equal(context.localSpec, null);
   assert.deepEqual(
     {
       source: context.prompts[0]?.source,
@@ -669,16 +677,17 @@ test('the skill records each behavioral question in its Rudder run', () => {
   });
 });
 
-// codex/019fb36f-4dfe-7c91-8674-5caaf68fcced/019fb39d-12e9-7673-b7d7-04d6c3f27243
+// rudder-spec: REQ-010
 test('the skill reports final test lines and total Rudder questions', () => {
   writeFileSync(
     join(repo, 'test', 'feature.test.ts'),
     [
-      '// codex/skill-context/skill-turn',
+      '// rudder-spec: REQ-005',
       "test('returns cached data', () => {});",
       '',
     ].join('\n')
   );
+  writeFileSync(join(repo, 'openapi.yaml'), 'openapi: 3.1.0\n');
   const outcome = JSON.parse(
     execFileSync(
       process.execPath,
@@ -713,7 +722,7 @@ test('the skill reports final test lines and total Rudder questions', () => {
     changedPathCount: number;
     changedTestPathCount: number;
     changedProductionPathCount: number;
-    promptBackedTestCount: number;
+    specBackedTestCount: number;
     finalTestLineAdditionCount: number;
     finalTestLineDeletionCount: number;
     questionsAskedCount: number;
@@ -725,18 +734,32 @@ test('the skill reports final test lines and total Rudder questions', () => {
     status: 'completed',
     testsPassed: 'yes',
     coverageTargetMet: 'no',
-    changedPathCount: 2,
+    changedPathCount: 4,
     changedTestPathCount: 1,
-    changedProductionPathCount: 1,
-    promptBackedTestCount: 1,
+    changedProductionPathCount: 3,
+    specBackedTestCount: 1,
     finalTestLineAdditionCount: 2,
     finalTestLineDeletionCount: 0,
     questionsAskedCount: 1,
   });
 });
 
-test('data controls require confirmation and delete only prompt records', () => {
-  assert.equal(runData('status').promptCount, 1);
+// rudder-spec: REQ-008
+test('data controls delete only prompts and expose no spec count', () => {
+  const specPath = join(stateRoot, 'specs', 'data-control.md');
+  mkdirSync(join(stateRoot, 'specs'), { recursive: true });
+  writeFileSync(specPath, '# Keep me\n');
+  openDb()
+    .prepare(
+      `INSERT INTO specs (repository, branch, spec_path, source_relative_path)
+       VALUES (?, ?, ?, ?)`
+    )
+    .run('github.com/rudder-test/skill', 'main', specPath, null);
+  closeDb();
+
+  const initialStatus = runData('status');
+  assert.equal(initialStatus.promptCount, 1);
+  assert.equal('specCount' in initialStatus, false);
 
   const unconfirmed = spawnSync(
     process.execPath,
@@ -757,5 +780,14 @@ test('data controls require confirmation and delete only prompt records', () => 
     promptsForBranch('github.com/rudder-test/skill', 'main'),
     []
   );
-
+  assert.equal(
+    (
+      openDb()
+        .prepare('SELECT count(*) AS count FROM specs')
+        .get() as { count: number }
+    ).count,
+    1
+  );
+  closeDb();
+  assert.equal(readFileSync(specPath, 'utf8'), '# Keep me\n');
 });

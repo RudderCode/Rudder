@@ -27,6 +27,22 @@ export const promptBranches = sqliteTable(
   ]
 );
 
+export const specs = sqliteTable(
+  'specs',
+  {
+    repository: text('repository').notNull(),
+    branch: text('branch').notNull(),
+    specPath: text('spec_path').notNull(),
+    sourceRelativePath: text('source_relative_path'),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.repository, table.branch],
+    }),
+  ]
+);
+
 export const schema = {
   promptBranches,
+  specs,
 };
