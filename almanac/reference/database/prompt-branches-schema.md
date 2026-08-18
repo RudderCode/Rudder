@@ -12,6 +12,9 @@ sources:
   - id: previous-output-migration
     type: file
     path: drizzle/20260723191552_capture-previous-agent-output/migration.sql
+  - id: specs-migration
+    type: file
+    path: drizzle/20260818210137_add-local-specs/migration.sql
   - id: db-client
     type: file
     path: src/db/client.ts
@@ -31,11 +34,15 @@ sources:
 
 # Prompt Branches Schema
 
-The `prompt_branches` table is Rudder's SQLite storage contract for captured prompt intent. Drizzle declares the table in `src/db/schema.ts`, generated migrations under `drizzle/` create and extend it at runtime, and `src/prompt-tagger.ts` defines the write, reconciliation, and lookup helper contracts [@schema] [@prompt-migration] [@previous-output-migration] [@prompt-tagger]. This reference is the exact lookup companion to [Prompt Branch Store](../../architecture/runtime/prompt-branch-store), [Prompt History](../../concepts/runtime/prompt-history), and the [generated migrations decision](../../decisions/database/generated-drizzle-migrations).
+The `prompt_branches` table is Rudder's SQLite storage contract for captured prompt intent.
+Drizzle declares it beside the `specs` table in `src/db/schema.ts`, generated migrations under `drizzle/` create and extend it at runtime, and `src/prompt-tagger.ts` defines the write, reconciliation, and lookup helper contracts [@schema] [@prompt-migration] [@previous-output-migration] [@prompt-tagger].
+This reference covers the prompt table; [Specs Schema](specs-schema) covers the branch-to-local-spec mapping added by the specs migration [@specs-migration].
+It is the exact lookup companion to [Prompt Branch Store](../../architecture/runtime/prompt-branch-store), [Prompt History](../../concepts/runtime/prompt-history), and the [generated migrations decision](../../decisions/database/generated-drizzle-migrations).
 
 ## Runtime Creation
 
-`openDb()` enables WAL, sets `PRAGMA busy_timeout = 5000`, enables `PRAGMA secure_delete = ON`, constructs a Drizzle client over the same `DatabaseSync` handle, and runs `migrate(orm, { migrationsFolder })` before caching the handles [@db-client]. The migration test opens a new database, asserts that `prompt_branches` is the live prompt/session table, verifies nullable `previous_agent_output`, and asserts that Drizzle recorded three applied migrations [@migrations-test].
+`openDb()` enables WAL, sets `PRAGMA busy_timeout = 5000`, enables `PRAGMA secure_delete = ON`, constructs a Drizzle client over the same `DatabaseSync` handle, and runs `migrate(orm, { migrationsFolder })` before caching the handles [@db-client].
+The migration test opens a new database, asserts that `prompt_branches` and `specs` are the live Rudder tables from the checked set, verifies nullable `previous_agent_output`, verifies the specs table shape, and asserts that Drizzle recorded four applied migrations [@migrations-test] [@specs-migration].
 
 ## Columns
 
@@ -71,8 +78,10 @@ The hook normalizer also accepts `Stop` as reconciliation, uses `cwd` when prese
 
 ## Helper Contracts
 
-`recordPromptBranch(input)` records a submitted prompt and returns the stored row. Replaying the same source/session/prompt ID updates prompt text, keeps the earliest submission time, and preserves the first non-null previous agent output [@prompt-tagger] [@prompt-tests].
+`recordPromptBranch(input)` records a submitted prompt and returns the stored row.
+Replaying the same source/session/prompt ID updates prompt text, keeps the earliest submission time, and preserves the first non-null previous agent output [@prompt-tagger] [@prompt-tests].
 
-`reconcilePromptBranch(input)` updates a submitted prompt to the branch active after the agent turn. If the input omits a prompt ID, it reconciles the latest unreconciled prompt for the same source/session pair [@prompt-tagger] [@prompt-tests].
+`reconcilePromptBranch(input)` updates a submitted prompt to the branch active after the agent turn.
+If the input omits a prompt ID, it reconciles the latest unreconciled prompt for the same source/session pair [@prompt-tagger] [@prompt-tests].
 
 `promptsForSession(source, sessionId)` returns prompts ordered by `submittedAt` and `promptId` [@prompt-tagger]. `promptsForBranch(repository, branch)` normalizes repository and branch input, then returns branch prompts ordered by submission time, source, session ID, and prompt ID [@prompt-tagger].
