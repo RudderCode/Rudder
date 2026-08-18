@@ -1,7 +1,7 @@
 {
   "name": "@ruddercode/rudder-plugin",
   "version": "0.1.5",
-  "description": "Generate focused unit tests from coding-session intent and worktree changes.",
+  "description": "Maintain a device-local spec from coding-session intent, then generate focused unit tests.",
   "type": "module",
   "engines": {
     "node": ">=24.0.0"

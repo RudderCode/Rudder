@@ -1,7 +1,7 @@
 {
   "name": "rudder",
   "version": "0.1.5",
-  "description": "Generate focused unit tests from coding-session intent and worktree changes using your existing coding agent.",
+  "description": "Maintain a device-local spec from coding-session intent, then generate focused unit tests with your existing coding agent.",
   "author": {
     "name": "Vivek Yanamadula",
     "email": "vivek@archermoney.com"

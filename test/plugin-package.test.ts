@@ -47,7 +47,7 @@ after(() => {
   rmSync(root, { recursive: true, force: true });
 });
 
-// codex/019fb444-8493-7973-9439-341f7b35ed2a/019fb45d-2e35-73a0-a420-e73a312bb8b8
+// rudder-spec: REQ-009
 test('ships matching Codex and Claude plugin metadata', () => {
   const codex = JSON.parse(
     readFileSync(join(pluginRoot, '.codex-plugin', 'plugin.json'), 'utf8')
@@ -62,6 +62,8 @@ test('ships matching Codex and Claude plugin metadata', () => {
   assert.equal(codex.name, 'rudder');
   assert.equal(claude.name, codex.name);
   assert.equal(codex.description, claude.description);
+  assert.match(codex.description, /device-local spec/i);
+  assert.match(packageManifest.description, /device-local spec/i);
   assert.equal(packageManifest.name, '@ruddercode/rudder-plugin');
   assert.equal(packageManifest.engines.node, '>=24.0.0');
   assert.equal(packageManifest.dependencies, undefined);
@@ -133,7 +135,7 @@ test('keeps the Rudder package version synchronized across the codebase', () => 
 
 });
 
-// codex/019fb36f-4dfe-7c91-8674-5caaf68fcced/019fb386-4741-7860-89a9-97f3697fa4f1
+// rudder-spec: REQ-009
 test('ships a public marketplace catalog and its package resources', () => {
   const marketplace = JSON.parse(
     readFileSync(
@@ -143,6 +145,14 @@ test('ships a public marketplace catalog and its package resources', () => {
   );
   const skill = readFileSync(
     join(pluginRoot, 'skills', 'rudder', 'SKILL.md'),
+    'utf8'
+  );
+  const openaiAgent = readFileSync(
+    join(pluginRoot, 'skills', 'rudder', 'agents', 'openai.yaml'),
+    'utf8'
+  );
+  const specTemplate = readFileSync(
+    join(pluginRoot, 'skills', 'rudder', 'references', 'spec-template.md'),
     'utf8'
   );
 
@@ -155,12 +165,30 @@ test('ships a public marketplace catalog and its package resources', () => {
     '@ruddercode/rudder-plugin'
   );
   assert.match(skill, /^---\nname: rudder\n/);
+  assert.match(skill, /Resolve the device-local spec/);
+  assert.match(skill, /Stop and report a broken link/);
+  assert.match(skill, /If several candidates are relevant, ask the user/);
+  assert.match(skill, /Reread the local file before proposing, approving/);
+  assert.match(skill, /require explicit approval before backing up/);
+  assert.match(skill, /approved local spec explicitly/);
+  assert.match(openaiAgent, /device-local spec/i);
+  for (const section of [
+    'Summary',
+    'Scope',
+    'Affected Surfaces',
+    'Requirements',
+    'Edge Cases',
+  ]) {
+    assert.match(specTemplate, new RegExp(`^## ${section}$`, 'mu'));
+  }
 
   for (const path of [
     ['skills', 'rudder', 'scripts', 'backup-tests.mjs'],
     ['skills', 'rudder', 'scripts', 'context.mjs'],
+    ['skills', 'rudder', 'scripts', 'local-spec.mjs'],
     ['skills', 'rudder', 'scripts', 'manage-data.mjs'],
     ['skills', 'rudder', 'scripts', 'telemetry.mjs'],
+    ['skills', 'rudder', 'references', 'spec-template.md'],
     ['docs', 'install.md'],
     ['docs', 'privacy.md'],
     ['docs', 'support.md'],
@@ -168,6 +196,42 @@ test('ships a public marketplace catalog and its package resources', () => {
     ['docs', 'marketplace-submission.md'],
   ]) {
     assert.ok(readFileSync(join(pluginRoot, ...path), 'utf8').length > 0);
+  }
+});
+
+// rudder-spec: REQ-010
+test('traces generated tests through spec sections in the final report', () => {
+  const skill = readFileSync(
+    join(pluginRoot, 'skills', 'rudder', 'SKILL.md'),
+    'utf8'
+  );
+
+  assert.match(skill, /# The tests your instructions inspired:/);
+  assert.match(skill, /rudder-spec: <section-id>/);
+  assert.match(skill, /one group per spec section/);
+  assert.match(skill, /Open the completed report/);
+  assert.match(skill, /No spec-backed tests were generated\./);
+  assert.doesNotMatch(skill, /# The tests your prompts inspired:/);
+  assert.doesNotMatch(skill, /Exact prompt text \| Prior agent context/);
+});
+
+// rudder-spec: REQ-006
+test('limits prompt provenance to test-authorizing spec sections', () => {
+  const specTemplate = readFileSync(
+    join(pluginRoot, 'skills', 'rudder', 'references', 'spec-template.md'),
+    'utf8'
+  );
+
+  assert.doesNotMatch(specTemplate, /^## Open Questions$/mu);
+  assert.equal(
+    [...specTemplate.matchAll(/Prompt provenance:/gu)].length,
+    2
+  );
+  for (const section of [
+    /### REQ-001:[^\n]*\n(?:(?!^### |^## ).)*Prompt provenance:/msu,
+    /### EC-001:[^\n]*\n(?:(?!^### |^## ).)*Prompt provenance:/msu,
+  ]) {
+    assert.match(specTemplate, section);
   }
 });
 

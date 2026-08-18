@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import {
   captureRudderTelemetry,
+  isSpecCandidatePath,
   isTestPath,
   repositoryKey,
   testDiffLineCounts,
@@ -65,35 +66,54 @@ function resolveBase(root, requested) {
   return 'HEAD';
 }
 
-function storedPrompts(repository, branch) {
+function tableExists(database, name) {
+  return Boolean(
+    database
+      .prepare(
+        "SELECT 1 AS present FROM sqlite_master WHERE type = 'table' AND name = ?"
+      )
+      .get(name)
+  );
+}
+
+function storedContext(repository, branch) {
   const stateRoot = process.env.RUDDER_HOME || join(homedir(), '.rudder');
   const databasePath = join(stateRoot, 'rudder.db');
-  if (!existsSync(databasePath)) return { databasePath, prompts: [] };
+  if (!existsSync(databasePath)) {
+    return { databasePath, localSpec: null, prompts: [] };
+  }
 
   const database = new DatabaseSync(databasePath, { readOnly: true });
   try {
-    const table = database
-      .prepare(
-        "SELECT 1 AS present FROM sqlite_master WHERE type = 'table' AND name = 'prompt_branches'"
-      )
-      .get();
-    if (!table) return { databasePath, prompts: [] };
-
-    const prompts = database
-      .prepare(
-        `SELECT source,
-                session_id AS sessionId,
-                prompt_id AS promptId,
-                prompt_text AS promptText,
-                previous_agent_output AS previousAgentOutput,
-                submitted_at AS submittedAt,
-                reconciled_at AS reconciledAt
-           FROM prompt_branches
-          WHERE repository = ? AND branch = ?
-          ORDER BY submitted_at, source, session_id, prompt_id`
-      )
-      .all(repository, branch);
-    return { databasePath, prompts };
+    const prompts = tableExists(database, 'prompt_branches')
+      ? database
+          .prepare(
+            `SELECT source,
+                    session_id AS sessionId,
+                    prompt_id AS promptId,
+                    prompt_text AS promptText,
+                    previous_agent_output AS previousAgentOutput,
+                    submitted_at AS submittedAt,
+                    reconciled_at AS reconciledAt
+               FROM prompt_branches
+              WHERE repository = ? AND branch = ?
+              ORDER BY submitted_at, source, session_id, prompt_id`
+          )
+          .all(repository, branch)
+      : [];
+    const localSpec = tableExists(database, 'specs')
+      ? (database
+          .prepare(
+            `SELECT repository,
+                    branch,
+                    spec_path AS specPath,
+                    source_relative_path AS sourceRelativePath
+               FROM specs
+              WHERE repository = ? AND branch = ?`
+          )
+          .get(repository, branch) ?? null)
+      : null;
+    return { databasePath, localSpec, prompts };
   } finally {
     database.close();
   }
@@ -131,18 +151,19 @@ function main() {
     '-z',
   ]);
   const changedPaths = [...new Set([...tracked, ...untracked])].sort();
+  const specCandidatePaths = changedPaths.filter(isSpecCandidatePath);
   const testPaths = changedPaths.filter(isTestPath);
-  const otherPaths = changedPaths.filter((path) => !isTestPath(path));
+  const productionCandidatePaths = changedPaths.filter(
+    (path) => !isTestPath(path)
+  );
   const testLines = testDiffLineCounts(root, mergeBase);
   const repository = repositoryKey(root, branch);
-  const promptData = storedPrompts(repository, branch);
+  const stored = storedContext(repository, branch);
   const promptSessions = new Set(
-    promptData.prompts.map(
-      (prompt) => `${prompt.source}\0${prompt.sessionId}`
-    )
+    stored.prompts.map((prompt) => `${prompt.source}\0${prompt.sessionId}`)
   );
   const promptSourceCounts = {};
-  for (const prompt of promptData.prompts) {
+  for (const prompt of stored.prompts) {
     const source = ['claude-code', 'codex', 'cursor'].includes(prompt.source)
       ? prompt.source
       : 'other';
@@ -154,15 +175,15 @@ function main() {
       repository,
       branch,
       runId: rudderRunId,
-      capturedPromptCount: promptData.prompts.length,
+      capturedPromptCount: stored.prompts.length,
       capturedSessionCount: promptSessions.size,
-      reconciledPromptCount: promptData.prompts.filter(
+      reconciledPromptCount: stored.prompts.filter(
         (prompt) => prompt.reconciledAt !== null
       ).length,
       promptSourceCounts,
       changedPathCount: changedPaths.length,
       changedTestPathCount: testPaths.length,
-      changedProductionPathCount: otherPaths.length,
+      changedProductionPathCount: productionCandidatePaths.length,
       untrackedPathCount: untracked.length,
       testLineAdditionCount: testLines.additions,
       testLineDeletionCount: testLines.deletions,
@@ -172,7 +193,7 @@ function main() {
   process.stdout.write(
     `${JSON.stringify(
       {
-        schemaVersion: 1,
+        schemaVersion: 2,
         rudderRunId,
         root,
         repository,
@@ -180,13 +201,15 @@ function main() {
         baseRef,
         mergeBase,
         changedPaths,
+        localSpec: stored.localSpec,
+        productionCandidatePaths,
+        specCandidatePaths,
         testPaths,
-        otherPaths,
         untrackedPaths: untracked.sort(),
         testLineAdditionCount: testLines.additions,
         testLineDeletionCount: testLines.deletions,
-        promptDatabasePath: promptData.databasePath,
-        prompts: promptData.prompts,
+        promptDatabasePath: stored.databasePath,
+        prompts: stored.prompts,
       },
       null,
       2

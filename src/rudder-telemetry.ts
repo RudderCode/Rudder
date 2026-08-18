@@ -7,6 +7,7 @@ import {
 export const rudderUsageEvents = [
   'run-started',
   'context-refreshed',
+  'spec-created',
   'test-backup-created',
   'question-asked',
   'run-finished',
@@ -166,6 +167,11 @@ export function rudderUsageEventProperties(
     case 'run-started':
     case 'context-refreshed':
       return contextProperties(context, payload);
+    case 'spec-created':
+      return {
+        ...runProperties(context, payload),
+        host: host(payload.host),
+      };
     case 'test-backup-created':
       return {
         ...runProperties(context, payload),
@@ -219,9 +225,9 @@ export function rudderUsageEventProperties(
           payload.changedProductionPathCount,
           'changedProductionPathCount'
         ),
-        prompt_backed_test_count: count(
-          payload.promptBackedTestCount,
-          'promptBackedTestCount'
+        spec_backed_test_count: count(
+          payload.specBackedTestCount,
+          'specBackedTestCount'
         ),
         final_test_lines_added_from_base: count(
           payload.testLineAdditionCount,

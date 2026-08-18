@@ -72,6 +72,18 @@ export function repositoryKey(root, branch) {
   return `local:${createHash('sha256').update(absolute).digest('hex')}`;
 }
 
+export function isSpecCandidatePath(path) {
+  const normalized = path.replaceAll('\\', '/');
+  const file = basename(normalized);
+  if (/\.(feature|md|mdx)$/iu.test(file)) return true;
+
+  return (
+    /\.(json|ya?ml)$/iu.test(file) &&
+    (/(?:^|\/)(?:asyncapi|openapi)(?:\/|$)/iu.test(normalized) ||
+      /^(?:asyncapi|openapi)\.(?:json|ya?ml)$/iu.test(file))
+  );
+}
+
 export function isTestPath(path) {
   const normalized = path.replaceAll('\\', '/');
   const file = basename(normalized);
@@ -225,9 +237,9 @@ function safeRelativePath(root, path) {
   return normalized;
 }
 
-function promptBackedTestCount(root, testPaths) {
+function specBackedTestCount(root, testPaths) {
   const tag =
-    /^\s*(?:\/\/|#|--|;|\/\*+|\*)\s*(?:claude-code|codex|cursor)\/[^/\s]+\/[^/\s]+/gmu;
+    /^\s*(?:(?:\/\/|#|--|;)\s*rudder-spec:\s*(?:REQ|EC)-\d{3}|\/\*+\s*rudder-spec:\s*(?:REQ|EC)-\d{3}\s*\*\/)\s*$/gmu;
   let count = 0;
   for (const path of testPaths) {
     const safePath = safeRelativePath(root, path);
@@ -307,7 +319,7 @@ function finishRun(args) {
     changedPathCount: changedPaths.length,
     changedTestPathCount: testPaths.length,
     changedProductionPathCount: productionPaths.length,
-    promptBackedTestCount: promptBackedTestCount(root, testPaths),
+    specBackedTestCount: specBackedTestCount(root, testPaths),
     finalTestLineAdditionCount: testLines.additions,
     finalTestLineDeletionCount: testLines.deletions,
     questionsAskedCount: argumentCount(args, '--questions-asked'),
@@ -322,7 +334,7 @@ function finishRun(args) {
     changedPathCount: result.changedPathCount,
     changedTestPathCount: result.changedTestPathCount,
     changedProductionPathCount: result.changedProductionPathCount,
-    promptBackedTestCount: result.promptBackedTestCount,
+    specBackedTestCount: result.specBackedTestCount,
     testLineAdditionCount: result.finalTestLineAdditionCount,
     testLineDeletionCount: result.finalTestLineDeletionCount,
     questionsAskedCount: result.questionsAskedCount,
