@@ -43,10 +43,10 @@ topics:
     title: Local State
     description: User-scoped runtime state such as the Rudder home directory, SQLite database, and telemetry identity.
     parents: [runtime]
-  - slug: mcp-app
-    title: MCP App
-    description: MCP server, app resource, UI launcher, and host manifest configuration for Rudder's interactive UI.
-    parents: [plugin, runtime]
+  - slug: local-spec
+    title: Local Specs
+    description: Device-local Markdown specs, branch mappings, spec-section provenance, and test-generation workflow.
+    parents: [runtime, product-intent]
   - slug: package
     title: Package
     description: npm package metadata, exports, scripts, publishing, and build outputs.
@@ -57,11 +57,11 @@ topics:
     parents: [package, product-intent]
   - slug: product-intent
     title: Product Intent
-    description: Rudder's prompt-backed product workflow, implemented constraints, and user-intent model.
+    description: Rudder's prompt-and-spec-backed product workflow, implemented constraints, and user-intent model.
     parents: [concepts]
   - slug: prompt-capture
     title: Prompt Capture
-    description: Local prompt text capture, prompt-to-branch reconciliation, data controls, and prompt-backed skill context.
+    description: Local prompt text capture, prompt-to-branch reconciliation, data controls, and prompt provenance for local specs.
     parents: [runtime, database, product-intent]
   - slug: prompt-history
     title: Prompt History
@@ -89,7 +89,7 @@ topics:
     parents: [architecture]
   - slug: sqlite
     title: SQLite
-    description: SQLite database use, generated migrations, and prompt capture persistence.
+    description: SQLite database use, generated migrations, prompt capture persistence, and local spec persistence.
     parents: [database]
   - slug: telemetry
     title: Telemetry
@@ -97,7 +97,7 @@ topics:
     parents: [runtime]
   - slug: test-generation-intent
     title: Test Generation Intent
-    description: Intent-backed test-generation behavior, source tags, coverage questions, and workflow standards.
+    description: Intent-backed test-generation behavior, spec-section tags, coverage questions, and workflow standards.
     parents: [product-intent]
   - slug: tooling
     title: Tooling

@@ -1,6 +1,6 @@
 {
   "name": "rudder",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "description": "Maintain a device-local spec from coding-session intent, then generate focused unit tests with your existing coding agent.",
   "author": {
     "name": "Vivek Yanamadula",
