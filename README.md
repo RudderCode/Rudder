@@ -21,7 +21,7 @@ test coverage into a proxy for how comprehensive your specs really are.
 
 <strong>Why use it:</strong> 
 
-> "I want my agents to stop guessing when coding, but I don't want to have to pre-write super long specs"
+> "I want my agents to stop guessing what I want when coding, but I don't want to have to pre-write super long specs"
 
 Rudder solves this by retrospectively writing specs for you based on your prompt history, then asking you
 questions until the spec is comprehensive enough to stop any guesswork.
